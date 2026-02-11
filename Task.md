@@ -238,3 +238,61 @@
     - `refresh_market_prices` 정상 실행, 외부 응답 부재 시 `partial/EMPTY_QUOTE`로 안전 처리
 - 비고:
   - 과거 마이그레이션 이력(`0001_initial`)의 `twitter` 문자열은 이력 보존 목적
+
+### 2026-02-11 14:15 - 화면 실데이터 연동 1차 (대시보드 HTMX + 종목 차트)
+- 범위:
+  - 대시보드 실데이터 표시를 partial 구조로 분리하고 HTMX 갱신 추가
+  - 종목 상세에 종가+관심도 오버레이 차트 구현
+- 구현 내용:
+  - `apps/dashboard/views.py`
+    - `_dashboard_context()` 도입
+    - `market_summary_partial()`, `top_interest_partial()` 추가
+    - 빈 데이터 상태 플래그(`has_market_data`, `has_interest_data`) 계산
+  - `apps/dashboard/urls.py`
+    - `/partials/market-summary/`, `/partials/top-interest/` 라우트 추가
+  - `apps/dashboard/templates/dashboard/index.html`
+    - 본문을 partial include 방식으로 변경
+  - 신규 partial 템플릿 추가:
+    - `apps/dashboard/templates/dashboard/_market_summary_panel.html`
+    - `apps/dashboard/templates/dashboard/_top_interest_panel.html`
+    - 섹션별 `hx-get` 새로고침 버튼 추가
+  - `apps/stocks/views.py`
+    - 차트용 JSON 데이터 생성(`price_chart_data`, `interest_chart_data`)
+    - 관심도 일별 집계(`TruncDate`, `Sum`) 추가
+  - `apps/stocks/templates/stocks/detail.html`
+    - `canvas#stock-overlay-chart` 추가
+    - `json_script` 기반 데이터 주입
+    - source 표시를 `row.get_source_display`로 변경
+  - `static/js/charts.js`
+    - `Chart.js` 오버레이 라인차트 렌더링 구현
+    - `DOMContentLoaded`, `htmx:afterSwap` 시 렌더 트리거
+  - `templates/base.html`
+    - `htmx`, `Chart.js` CDN 추가
+    - `login/logout` 링크를 `accounts:login/logout`으로 수정
+  - `services/interest_service.py`
+    - `get_top_interest_stocks()`에 `hours`, `only_positive` 옵션 추가
+  - `static/css/style.css`
+    - panel header/refresh 버튼/empty 상태/차트 영역 스타일 추가
+- 변경 파일:
+  - `apps/dashboard/views.py`
+  - `apps/dashboard/urls.py`
+  - `apps/dashboard/templates/dashboard/index.html`
+  - `apps/dashboard/templates/dashboard/_market_summary_panel.html`
+  - `apps/dashboard/templates/dashboard/_top_interest_panel.html`
+  - `apps/stocks/views.py`
+  - `apps/stocks/templates/stocks/detail.html`
+  - `services/interest_service.py`
+  - `static/js/charts.js`
+  - `templates/base.html`
+  - `static/css/style.css`
+  - `Task.md`
+- 검증:
+  - `python manage.py check` 통과
+  - 스모크 요청:
+    - `/` -> `200`
+    - `/stocks/` -> `200`
+    - `/partials/market-summary/` -> `200`
+    - `/partials/top-interest/` -> `200`
+    - `/stocks/<symbol>/` -> `200`
+- 비고:
+  - 렌더 테스트 중 발견된 `NoReverseMatch('login')`를 `accounts` 네임스페이스 링크로 교정 완료

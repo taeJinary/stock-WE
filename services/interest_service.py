@@ -95,8 +95,8 @@ def collect_interest_snapshot(limit_stocks=20, limit_per_symbol=3):
     }
 
 
-def get_top_interest_stocks(limit=10):
-    since = timezone.now() - timedelta(hours=24)
+def get_top_interest_stocks(limit=10, hours=24, only_positive=False):
+    since = timezone.now() - timedelta(hours=hours)
     queryset = (
         Stock.objects.filter(is_active=True)
         .annotate(
@@ -110,4 +110,6 @@ def get_top_interest_stocks(limit=10):
         )
         .order_by("-total_mentions", "symbol")
     )
+    if only_positive:
+        queryset = queryset.filter(total_mentions__gt=0)
     return list(queryset[:limit])

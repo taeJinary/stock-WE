@@ -47,6 +47,18 @@ body {
   margin-bottom: 1rem;
 }
 
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.panel-head h2 {
+  margin: 0;
+}
+
 .panel.narrow {
   max-width: 400px;
 }
@@ -96,4 +108,21 @@ td {
 input,
 button {
   padding: 0.45rem 0.55rem;
+}
+
+.btn-refresh {
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.empty-note {
+  margin: 0;
+  color: #64748b;
+}
+
+#stock-overlay-chart {
+  width: 100%;
+  min-height: 320px;
 }
