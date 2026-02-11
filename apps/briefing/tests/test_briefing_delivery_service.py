@@ -46,7 +46,8 @@ class BriefingDeliveryServiceTests(TestCase):
         self.assertEqual(result["sent_count"], 1)
         self.assertEqual(result["target_count"], 1)
         self.assertEqual(self.briefing.email_status, DailyBriefing.EmailStatus.SENT)
-        self.assertEqual(self.briefing.email_recipient_count, 1)
+        self.assertEqual(self.briefing.email_sent_count, 1)
+        self.assertEqual(self.briefing.email_target_count, 1)
         self.assertIsNotNone(self.briefing.email_sent_at)
 
     def test_send_daily_briefing_email_skips_when_no_active_recipients(self):
@@ -55,6 +56,8 @@ class BriefingDeliveryServiceTests(TestCase):
 
         self.assertEqual(result["status"], "skipped")
         self.assertEqual(result["reason"], "NO_ACTIVE_RECIPIENTS")
+        self.assertEqual(result["sent_count"], 0)
+        self.assertEqual(result["target_count"], 0)
         self.assertEqual(self.briefing.email_status, DailyBriefing.EmailStatus.SKIPPED)
         self.assertEqual(self.briefing.email_failure_reason, "NO_ACTIVE_RECIPIENTS")
 
@@ -79,4 +82,6 @@ class BriefingDeliveryServiceTests(TestCase):
         self.assertEqual(result["target_count"], 2)
         self.assertEqual(result["email_status"], DailyBriefing.EmailStatus.PARTIAL)
         self.assertEqual(self.briefing.email_status, DailyBriefing.EmailStatus.PARTIAL)
+        self.assertEqual(self.briefing.email_sent_count, 1)
+        self.assertEqual(self.briefing.email_target_count, 2)
         self.assertIn("fail@example.com", self.briefing.email_failure_reason)

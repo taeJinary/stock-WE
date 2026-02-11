@@ -19,7 +19,8 @@ class DailyBriefing(models.Model):
         choices=EmailStatus.choices,
         default=EmailStatus.PENDING,
     )
-    email_recipient_count = models.PositiveIntegerField(default=0)
+    email_sent_count = models.PositiveIntegerField(default=0)
+    email_target_count = models.PositiveIntegerField(default=0)
     email_sent_at = models.DateTimeField(blank=True, null=True)
     email_failure_reason = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

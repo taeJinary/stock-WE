@@ -1,7 +1,8 @@
 import logging
 import math
-from statistics import mean, pstdev
+from collections import defaultdict
 from datetime import timedelta
+from statistics import mean, pstdev
 
 from django.db import transaction
 from django.db.models import Q, Sum
@@ -362,22 +363,72 @@ def detect_interest_anomalies(
     min_surge_ratio=2.5,
     min_z_score=2.0,
 ):
-    target_stocks = list(Stock.objects.filter(is_active=True).order_by("symbol"))
+    target_stocks = list(
+        Stock.objects.filter(is_active=True).only("id", "symbol", "name").order_by("symbol")
+    )
     if not target_stocks:
         return []
 
+    now = timezone.now().replace(minute=0, second=0, microsecond=0)
+    recent_start = now - timedelta(hours=max(recent_hours - 1, 0))
+    baseline_start = recent_start - timedelta(hours=baseline_hours)
+    baseline_end = recent_start - timedelta(hours=1)
+    stock_ids = [stock.id for stock in target_stocks]
+
+    rows = (
+        Interest.objects.filter(
+            stock_id__in=stock_ids,
+            recorded_at__gte=baseline_start,
+            recorded_at__lte=now,
+        )
+        .annotate(bucket=TruncHour("recorded_at"))
+        .values("stock_id", "bucket")
+        .annotate(total_mentions=Sum("mentions"))
+        .order_by("stock_id", "bucket")
+    )
+
+    mentions_by_stock_bucket = defaultdict(dict)
+    for row in rows:
+        bucket = row.get("bucket")
+        if bucket is None:
+            continue
+        if timezone.is_naive(bucket):
+            bucket = timezone.make_aware(bucket, timezone.get_current_timezone())
+        mentions_by_stock_bucket[row["stock_id"]][bucket] = int(row.get("total_mentions") or 0)
+
     anomalies = []
     for stock in target_stocks:
-        result = get_stock_interest_anomaly(
-            stock=stock,
-            recent_hours=recent_hours,
-            baseline_hours=baseline_hours,
+        stock_mentions = mentions_by_stock_bucket.get(stock.id, {})
+
+        recent_values = []
+        cursor = recent_start
+        while cursor <= now:
+            recent_values.append(stock_mentions.get(cursor, 0))
+            cursor += timedelta(hours=1)
+
+        baseline_values = []
+        cursor = baseline_start
+        while cursor <= baseline_end:
+            baseline_values.append(stock_mentions.get(cursor, 0))
+            cursor += timedelta(hours=1)
+
+        metrics = _calc_anomaly_metrics(
+            recent_values=recent_values,
+            baseline_values=baseline_values,
             min_recent_mentions=min_recent_mentions,
             min_surge_ratio=min_surge_ratio,
             min_z_score=min_z_score,
         )
-        if result:
-            anomalies.append(result)
+        if not metrics:
+            continue
+
+        anomalies.append(
+            {
+                "symbol": stock.symbol,
+                "name": stock.name,
+                **metrics,
+            }
+        )
 
     anomalies.sort(
         key=lambda row: (

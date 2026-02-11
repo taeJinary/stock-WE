@@ -120,3 +120,36 @@ class InterestServiceTests(TestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].symbol, positive.symbol)
+
+    def test_detect_interest_anomalies_query_count_is_bounded(self):
+        now = timezone.now().replace(minute=0, second=0, microsecond=0)
+        extra_stocks = [
+            Stock.objects.create(
+                symbol=f"AN{idx}",
+                name=f"Anomaly {idx}",
+                market=Stock.Market.USA,
+                sector="Tech",
+                is_active=True,
+            )
+            for idx in range(3)
+        ]
+        for stock in [self.stock, *extra_stocks]:
+            for hours_ago in range(6, 78):
+                Interest.objects.create(
+                    stock=stock,
+                    source=Interest.Source.REDDIT,
+                    recorded_at=now - timedelta(hours=hours_ago),
+                    mentions=1,
+                )
+            for hours_ago in range(0, 6):
+                Interest.objects.create(
+                    stock=stock,
+                    source=Interest.Source.REDDIT,
+                    recorded_at=now - timedelta(hours=hours_ago),
+                    mentions=10,
+                )
+
+        with self.assertNumQueries(2):
+            anomalies = detect_interest_anomalies(limit=10)
+
+        self.assertGreaterEqual(len(anomalies), 1)
