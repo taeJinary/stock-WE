@@ -8,6 +8,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.sqlite3
+*.sqlite3-journal
 db.sqlite3
 
 # IDE
@@ -16,6 +17,7 @@ db.sqlite3
 
 # Docker
 postgres_data/
+celerybeat-schedule*
 
 # OS
 .DS_Store
