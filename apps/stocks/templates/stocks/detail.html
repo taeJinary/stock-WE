@@ -9,6 +9,31 @@
   <p><strong>Sector:</strong> {{ stock.sector|default:"-" }}</p>
 </section>
 
+<section class="panel">
+  <h3>Anomaly Alert</h3>
+  {% if stock_anomaly %}
+    <div class="anomaly-summary">
+      <p class="anomaly-main">
+        Recent interest is
+        <strong>{{ stock_anomaly.surge_ratio }}x</strong>
+        above baseline.
+      </p>
+      <p class="meta-note">
+        recent={{ stock_anomaly.recent_mentions }},
+        expected={{ stock_anomaly.expected_mentions }},
+        z-score={{ stock_anomaly.z_score }}
+      </p>
+      <p>
+        <span class="severity-badge severity-{{ stock_anomaly.severity }}">
+          {{ stock_anomaly.severity|upper }}
+        </span>
+      </p>
+    </div>
+  {% else %}
+    <p class="empty-note">No abnormal interest surge detected.</p>
+  {% endif %}
+</section>
+
 {% if request.user.is_authenticated %}
 <section class="panel">
   <h3>Watchlists</h3>

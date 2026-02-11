@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from apps.watchlist.models import Watchlist, WatchlistItem
+from services.interest_service import get_stock_interest_anomaly
 from services.news_service import get_related_news
 from services.topic_service import build_stock_topic_cloud
 from services.watchlist_service import get_watchlist_limit
@@ -31,6 +32,7 @@ def stock_detail(request, symbol):
     interest = list(stock.interest_records.order_by("-recorded_at")[:50])[::-1]
     news = get_related_news(stock_symbol=stock.symbol, limit=5)
     topic_cloud = build_stock_topic_cloud(stock=stock, hours=72, max_keywords=24)
+    stock_anomaly = get_stock_interest_anomaly(stock=stock)
     start_date = timezone.localdate() - timezone.timedelta(days=60)
     interest_by_day = (
         stock.interest_records.filter(recorded_at__date__gte=start_date)
@@ -76,6 +78,7 @@ def stock_detail(request, symbol):
             "interest_records": interest,
             "news_items": news,
             "topic_cloud": topic_cloud,
+            "stock_anomaly": stock_anomaly,
             "price_chart_data": price_chart_data,
             "interest_chart_data": interest_chart_data,
             "watchlists": user_watchlists,

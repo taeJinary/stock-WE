@@ -1,4 +1,6 @@
 import logging
+import math
+from statistics import mean, pstdev
 from datetime import timedelta
 
 from django.db import transaction
@@ -246,3 +248,143 @@ def get_interest_timeline(hours=24):
         )
         current += timedelta(hours=1)
     return result
+
+
+def _calc_anomaly_metrics(
+    recent_values,
+    baseline_values,
+    min_recent_mentions=8,
+    min_surge_ratio=2.5,
+    min_z_score=2.0,
+):
+    recent_total = sum(recent_values)
+    if recent_total < min_recent_mentions:
+        return None
+
+    baseline_avg = mean(baseline_values) if baseline_values else 0.0
+    expected_total = baseline_avg * max(len(recent_values), 1)
+    baseline_std = pstdev(baseline_values) if len(baseline_values) >= 2 else 0.0
+
+    if expected_total <= 0:
+        surge_ratio = float(recent_total) if recent_total > 0 else 0.0
+    else:
+        surge_ratio = recent_total / expected_total
+
+    if baseline_std <= 0:
+        z_score = 99.0 if recent_total > expected_total else 0.0
+    else:
+        z_score = (recent_total - expected_total) / (
+            baseline_std * math.sqrt(max(len(recent_values), 1))
+        )
+
+    if surge_ratio < min_surge_ratio and z_score < min_z_score:
+        return None
+
+    severity = "high" if surge_ratio >= 4.0 or z_score >= 4.0 else "medium"
+    return {
+        "recent_mentions": int(recent_total),
+        "expected_mentions": int(round(expected_total)),
+        "baseline_hourly_avg": round(baseline_avg, 2),
+        "surge_ratio": round(surge_ratio, 2),
+        "z_score": round(z_score, 2),
+        "severity": severity,
+    }
+
+
+def get_stock_interest_anomaly(
+    stock,
+    recent_hours=6,
+    baseline_hours=72,
+    min_recent_mentions=8,
+    min_surge_ratio=2.5,
+    min_z_score=2.0,
+):
+    now = timezone.now().replace(minute=0, second=0, microsecond=0)
+    recent_start = now - timedelta(hours=max(recent_hours - 1, 0))
+    baseline_start = recent_start - timedelta(hours=baseline_hours)
+
+    rows = (
+        Interest.objects.filter(
+            stock=stock,
+            recorded_at__gte=baseline_start,
+            recorded_at__lte=now,
+        )
+        .annotate(bucket=TruncHour("recorded_at"))
+        .values("bucket")
+        .annotate(total_mentions=Sum("mentions"))
+        .order_by("bucket")
+    )
+
+    mentions_by_bucket = {}
+    for row in rows:
+        bucket = row.get("bucket")
+        if bucket is None:
+            continue
+        if timezone.is_naive(bucket):
+            bucket = timezone.make_aware(bucket, timezone.get_current_timezone())
+        mentions_by_bucket[bucket] = int(row.get("total_mentions") or 0)
+
+    recent_values = []
+    cursor = recent_start
+    while cursor <= now:
+        recent_values.append(mentions_by_bucket.get(cursor, 0))
+        cursor += timedelta(hours=1)
+
+    baseline_values = []
+    cursor = baseline_start
+    baseline_end = recent_start - timedelta(hours=1)
+    while cursor <= baseline_end:
+        baseline_values.append(mentions_by_bucket.get(cursor, 0))
+        cursor += timedelta(hours=1)
+
+    metrics = _calc_anomaly_metrics(
+        recent_values=recent_values,
+        baseline_values=baseline_values,
+        min_recent_mentions=min_recent_mentions,
+        min_surge_ratio=min_surge_ratio,
+        min_z_score=min_z_score,
+    )
+    if not metrics:
+        return None
+
+    return {
+        "symbol": stock.symbol,
+        "name": stock.name,
+        **metrics,
+    }
+
+
+def detect_interest_anomalies(
+    limit=10,
+    recent_hours=6,
+    baseline_hours=72,
+    min_recent_mentions=8,
+    min_surge_ratio=2.5,
+    min_z_score=2.0,
+):
+    target_stocks = list(Stock.objects.filter(is_active=True).order_by("symbol"))
+    if not target_stocks:
+        return []
+
+    anomalies = []
+    for stock in target_stocks:
+        result = get_stock_interest_anomaly(
+            stock=stock,
+            recent_hours=recent_hours,
+            baseline_hours=baseline_hours,
+            min_recent_mentions=min_recent_mentions,
+            min_surge_ratio=min_surge_ratio,
+            min_z_score=min_z_score,
+        )
+        if result:
+            anomalies.append(result)
+
+    anomalies.sort(
+        key=lambda row: (
+            0 if row["severity"] == "high" else 1,
+            -row["surge_ratio"],
+            -row["z_score"],
+            row["symbol"],
+        )
+    )
+    return anomalies[:limit]
