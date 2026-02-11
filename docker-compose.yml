@@ -3,7 +3,7 @@ services:
     build: .
     command: python manage.py runserver 0.0.0.0:8000
     ports:
-      - "8000:8000"
+      - "${WEB_PORT:-8080}:8000"
     volumes:
       - .:/app
     depends_on:
@@ -11,6 +11,9 @@ services:
       - redis
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgresql://westock:westock@db:5432/westock
+      REDIS_URL: redis://redis:6379/0
 
   worker:
     build: .
@@ -22,6 +25,9 @@ services:
       - redis
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgresql://westock:westock@db:5432/westock
+      REDIS_URL: redis://redis:6379/0
 
   beat:
     build: .
@@ -33,6 +39,9 @@ services:
       - redis
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgresql://westock:westock@db:5432/westock
+      REDIS_URL: redis://redis:6379/0
 
   db:
     image: postgres:16
