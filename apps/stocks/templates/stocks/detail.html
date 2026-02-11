@@ -136,4 +136,23 @@
     {% endfor %}
   </ul>
 </section>
+
+<section class="panel">
+  <h3>Topic Keyword Cloud</h3>
+  {% if topic_cloud %}
+    <div class="topic-cloud">
+      {% for item in topic_cloud %}
+        <span
+          class="topic-chip"
+          style="--topic-weight: {{ item.weight }}; font-size: {{ item.font_size }}rem;"
+          title="{{ item.count }} occurrences"
+        >
+          {{ item.keyword }}
+        </span>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty-note">No keyword data yet.</p>
+  {% endif %}
+</section>
 {% endblock %}
