@@ -167,7 +167,7 @@ def fetch_alpha_vantage_quote(symbol, max_retries=ALPHA_VANTAGE_MAX_RETRIES):
     return {"status": "error", "code": "UNKNOWN", "message": last_error or "Unknown error"}
 
 
-def refresh_market_prices(symbols=None, force=False):
+def refresh_market_prices(symbols=None, force=False, stop_on_rate_limit=True):
     ensure_index_stocks()
     if symbols:
         stock_queryset = Stock.objects.filter(symbol__in=symbols, is_active=True)
@@ -179,9 +179,14 @@ def refresh_market_prices(symbols=None, force=False):
     updated = 0
     skipped = []
     failed = []
+    rate_limited = False
     today = timezone.localdate()
     api_call_count = 0
     for stock in stock_queryset:
+        if rate_limited and stop_on_rate_limit:
+            skipped.append(stock.symbol)
+            continue
+
         if not force and Price.objects.filter(stock=stock, traded_at=today).exists():
             skipped.append(stock.symbol)
             continue
@@ -197,13 +202,17 @@ def refresh_market_prices(symbols=None, force=False):
         api_call_count += 1
         quote_result = fetch_alpha_vantage_quote(api_symbol)
         if quote_result["status"] != "success":
+            reason = quote_result.get("code", "UNKNOWN")
+            message = quote_result.get("message", "")
             failed.append(
                 {
                     "symbol": stock.symbol,
-                    "reason": quote_result.get("code", "UNKNOWN"),
-                    "message": quote_result.get("message", ""),
+                    "reason": reason,
+                    "message": message,
                 }
             )
+            if reason == "RATE_LIMIT":
+                rate_limited = True
             continue
 
         quote = quote_result["data"]
@@ -230,6 +239,7 @@ def refresh_market_prices(symbols=None, force=False):
         "updated": updated,
         "skipped": skipped,
         "failed": failed,
+        "rate_limited": rate_limited,
     }
 
 

@@ -1,0 +1,30 @@
+<section class="panel" id="market-summary-panel">
+  <div class="panel-head">
+    <h2>시장 요약</h2>
+    <button
+      type="button"
+      class="btn-refresh"
+      hx-get="{% url 'dashboard:market-summary-partial' %}"
+      hx-target="#market-summary-panel"
+      hx-swap="outerHTML"
+    >
+      새로고침
+    </button>
+  </div>
+
+  {% if has_market_data %}
+    <div class="summary-grid">
+      {% for item in market_summary %}
+        <article class="summary-card">
+          <h3>{{ item.label }}</h3>
+          <p class="value">{{ item.price }}</p>
+          <p class="{% if item.change_rate >= 0 %}up{% else %}down{% endif %}">
+            {{ item.change_rate }}%
+          </p>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty-note">시장 데이터가 아직 수집되지 않았습니다.</p>
+  {% endif %}
+</section>

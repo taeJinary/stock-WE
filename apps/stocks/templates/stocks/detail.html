@@ -10,6 +10,13 @@
 </section>
 
 <section class="panel">
+  <h3>가격/관심도 추이</h3>
+  <canvas id="stock-overlay-chart" height="120"></canvas>
+  {{ price_chart_data|json_script:"price-chart-data" }}
+  {{ interest_chart_data|json_script:"interest-chart-data" }}
+</section>
+
+<section class="panel">
   <h3>Recent Prices</h3>
   <table>
     <thead>
@@ -54,7 +61,7 @@
       {% for row in interest_records %}
         <tr>
           <td>{{ row.recorded_at }}</td>
-          <td>{{ row.source }}</td>
+          <td>{{ row.get_source_display }}</td>
           <td>{{ row.mentions }}</td>
           <td>{{ row.sentiment_score|default:"-" }}</td>
         </tr>
