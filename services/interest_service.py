@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
+from django.db.models.functions import TruncHour
 from django.utils import timezone
 
 from apps.stocks.models import Interest, NewsItem, Stock
@@ -168,3 +169,80 @@ def get_top_interest_stocks(limit=10, hours=24, only_positive=False):
     if only_positive:
         queryset = queryset.filter(total_mentions__gt=0)
     return list(queryset[:limit])
+
+
+def get_sector_interest_heatmap(hours=24, limit=12):
+    since = timezone.now() - timedelta(hours=hours)
+    rows = (
+        Stock.objects.filter(is_active=True)
+        .annotate(
+            total_mentions=Coalesce(
+                Sum(
+                    "interest_records__mentions",
+                    filter=Q(interest_records__recorded_at__gte=since),
+                ),
+                0,
+            )
+        )
+        .filter(total_mentions__gt=0)
+        .values("sector", "total_mentions")
+        .order_by("-total_mentions", "sector")
+    )
+
+    merged = {}
+    for row in rows:
+        sector = (row.get("sector") or "").strip() or "Unknown"
+        merged[sector] = merged.get(sector, 0) + int(row.get("total_mentions") or 0)
+
+    sorted_items = sorted(
+        merged.items(),
+        key=lambda item: (-item[1], item[0]),
+    )[:limit]
+    if not sorted_items:
+        return []
+
+    max_mentions = max(mentions for _, mentions in sorted_items) or 1
+    return [
+        {
+            "sector": sector,
+            "mentions": mentions,
+            "intensity": round(mentions / max_mentions, 4),
+        }
+        for sector, mentions in sorted_items
+    ]
+
+
+def get_interest_timeline(hours=24):
+    end = timezone.now().replace(minute=0, second=0, microsecond=0)
+    start = end - timedelta(hours=max(hours - 1, 0))
+
+    rows = (
+        Interest.objects.filter(recorded_at__gte=start, recorded_at__lte=end)
+        .annotate(bucket=TruncHour("recorded_at"))
+        .values("bucket")
+        .annotate(total_mentions=Sum("mentions"))
+        .order_by("bucket")
+    )
+
+    mentions_by_bucket = {}
+    for row in rows:
+        bucket = row.get("bucket")
+        if bucket is None:
+            continue
+        if timezone.is_naive(bucket):
+            bucket = timezone.make_aware(bucket, timezone.get_current_timezone())
+        label = timezone.localtime(bucket).strftime("%m-%d %H:00")
+        mentions_by_bucket[label] = int(row.get("total_mentions") or 0)
+
+    result = []
+    current = start
+    while current <= end:
+        label = timezone.localtime(current).strftime("%m-%d %H:00")
+        result.append(
+            {
+                "label": label,
+                "mentions": mentions_by_bucket.get(label, 0),
+            }
+        )
+        current += timedelta(hours=1)
+    return result

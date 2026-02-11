@@ -1,0 +1,27 @@
+<section class="panel" id="interest-heatmap-panel">
+  <div class="panel-head">
+    <h2>Interest Heatmap (by Sector)</h2>
+    <button
+      type="button"
+      class="btn-refresh"
+      hx-get="{% url 'dashboard:interest-heatmap-partial' %}"
+      hx-target="#interest-heatmap-panel"
+      hx-swap="outerHTML"
+    >
+      Refresh
+    </button>
+  </div>
+
+  {% if has_heatmap_data %}
+    <div class="heatmap-grid">
+      {% for item in sector_heatmap %}
+        <article class="heatmap-card" style="--intensity: {{ item.intensity }};">
+          <h3>{{ item.sector }}</h3>
+          <p>{{ item.mentions }} mentions</p>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty-note">No sector interest data yet.</p>
+  {% endif %}
+</section>
