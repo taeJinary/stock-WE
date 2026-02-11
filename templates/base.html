@@ -24,6 +24,13 @@
     </nav>
   </header>
   <main class="container">
+    {% if messages %}
+      <section class="message-stack">
+        {% for message in messages %}
+          <p class="message {{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+      </section>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12"></script>
