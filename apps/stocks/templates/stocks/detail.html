@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}{{ stock.symbol }}{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>{{ stock.symbol }} - {{ stock.name }}</h2>
+  <p><strong>Market:</strong> {{ stock.get_market_display }}</p>
+  <p><strong>Sector:</strong> {{ stock.sector|default:"-" }}</p>
+</section>
+
+<section class="panel">
+  <h3>Recent Prices</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Open</th>
+        <th>High</th>
+        <th>Low</th>
+        <th>Close</th>
+        <th>Volume</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in prices %}
+        <tr>
+          <td>{{ row.traded_at }}</td>
+          <td>{{ row.open_price }}</td>
+          <td>{{ row.high_price }}</td>
+          <td>{{ row.low_price }}</td>
+          <td>{{ row.close_price }}</td>
+          <td>{{ row.volume }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">No price data.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h3>최근 관심도</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Source</th>
+        <th>Mentions</th>
+        <th>Sentiment</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in interest_records %}
+        <tr>
+          <td>{{ row.recorded_at }}</td>
+          <td>{{ row.source }}</td>
+          <td>{{ row.mentions }}</td>
+          <td>{{ row.sentiment_score|default:"-" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">관심도 데이터가 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h3>Related News</h3>
+  <ul>
+    {% for item in news_items %}
+      <li>
+        <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>
+      </li>
+    {% empty %}
+      <li>No news data.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

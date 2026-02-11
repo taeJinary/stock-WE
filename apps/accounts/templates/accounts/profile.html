@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Profile</h2>
+  <p><strong>User:</strong> {{ request.user.username }}</p>
+  <p><strong>Email:</strong> {{ request.user.email|default:"-" }}</p>
+  <p><strong>Plan:</strong> {{ subscription.plan|default:"free" }}</p>
+</section>
+{% endblock %}

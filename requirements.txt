@@ -1,0 +1,9 @@
+Django==5.2.11
+celery==5.5.3
+redis==6.4.0
+django-celery-beat==2.8.1
+psycopg[binary]==3.2.10
+httpx==0.28.1
+beautifulsoup4==4.13.5
+spacy==3.8.7
+konlpy==0.6.0

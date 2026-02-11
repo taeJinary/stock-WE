@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Morning Briefings{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Morning Briefings</h2>
+  <ul class="briefing-list">
+    {% for briefing in briefings %}
+      <li class="briefing-item">
+        <h3>{{ briefing.briefing_date }} - {{ briefing.title }}</h3>
+        <p>{{ briefing.summary }}</p>
+      </li>
+    {% empty %}
+      <li>No briefings yet.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
