@@ -35,11 +35,33 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return raw.lower() in {"1", "true", "yes", "on"}
 
 
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ImproperlyConfigured(f"{name} must be an integer") from exc
+
+
 def _env_list(name: str, default: list[str] | None = None) -> list[str]:
     raw = os.getenv(name)
     if raw is None:
         return default or []
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _env_secure_proxy_header(name: str = "SECURE_PROXY_SSL_HEADER") -> tuple[str, str] | None:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return None
+
+    parts = [item.strip() for item in raw.split(",", 1)]
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise ImproperlyConfigured(f"{name} must be in HEADER_NAME,header_value format")
+
+    return parts[0], parts[1]
 
 
 def _module_exists(module_name: str) -> bool:
@@ -76,11 +98,25 @@ def _build_database_config(database_url: str) -> dict[str, Any]:
 
 _load_dotenv(BASE_DIR / ".env")
 
+DJANGO_ENV = os.getenv("DJANGO_ENV", "development").strip().lower()
+IS_PRODUCTION = DJANGO_ENV in {"production", "prod"}
+
+DEBUG = _env_bool("DEBUG", default=not IS_PRODUCTION)
+if IS_PRODUCTION and DEBUG:
+    raise ImproperlyConfigured("DEBUG must be False when DJANGO_ENV is production")
+
 SECRET_KEY = _require_env("SECRET_KEY")
+if IS_PRODUCTION:
+    is_placeholder = SECRET_KEY.startswith("replace-with-")
+    if is_placeholder or len(SECRET_KEY) < 50 or len(set(SECRET_KEY)) < 5:
+        raise ImproperlyConfigured("SECRET_KEY is too weak for production")
 
-DEBUG = _env_bool("DEBUG", default=False)
+default_allowed_hosts = ["localhost", "127.0.0.1"] if DEBUG else []
+ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS", default=default_allowed_hosts)
+if not DEBUG and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("ALLOWED_HOSTS must be set when DEBUG is False")
 
-ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+CSRF_TRUSTED_ORIGINS = _env_list("CSRF_TRUSTED_ORIGINS", default=[])
 
 
 INSTALLED_APPS = [
@@ -168,11 +204,20 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", default=not DEBUG)
+CSRF_COOKIE_SECURE = _env_bool("CSRF_COOKIE_SECURE", default=not DEBUG)
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", default=not DEBUG)
+SECURE_HSTS_SECONDS = _env_int("SECURE_HSTS_SECONDS", default=0 if DEBUG else 31536000)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    default=not DEBUG,
+)
+SECURE_HSTS_PRELOAD = _env_bool("SECURE_HSTS_PRELOAD", default=not DEBUG)
+SECURE_REFERRER_POLICY = os.getenv("SECURE_REFERRER_POLICY", "same-origin")
+SECURE_PROXY_SSL_HEADER = _env_secure_proxy_header()
 
 REDIS_URL = _require_env("REDIS_URL")
 CELERY_BROKER_URL = REDIS_URL
