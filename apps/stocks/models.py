@@ -59,3 +59,26 @@ class Interest(models.Model):
     class Meta:
         ordering = ["-recorded_at", "-id"]
         indexes = [models.Index(fields=["recorded_at", "source"])]
+
+
+class NewsItem(models.Model):
+    class Source(models.TextChoices):
+        NEWS = "news", "News"
+
+    stock = models.ForeignKey(Stock, related_name="news_items", on_delete=models.CASCADE)
+    source = models.CharField(max_length=16, choices=Source.choices, default=Source.NEWS)
+    title = models.CharField(max_length=300)
+    url = models.URLField(max_length=500)
+    publisher = models.CharField(max_length=120, blank=True)
+    published_at = models.DateTimeField(blank=True, null=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-published_at", "-id"]
+        unique_together = ("stock", "url")
+        indexes = [
+            models.Index(fields=["stock", "published_at"]),
+            models.Index(fields=["source", "published_at"]),
+        ]

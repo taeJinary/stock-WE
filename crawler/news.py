@@ -1,4 +1,4 @@
-from datetime import datetime
+from email.utils import parsedate_to_datetime
 
 from .base import BaseCrawler, CrawlRecord
 
@@ -35,15 +35,15 @@ class NewsCrawler(BaseCrawler):
                 published_at = None
                 if raw_pub_date:
                     try:
-                        published_at = datetime.strptime(
-                            raw_pub_date,
-                            "%a, %d %b %Y %H:%M:%S %Z",
-                        )
+                        published_at = parsedate_to_datetime(raw_pub_date)
                     except ValueError:
                         published_at = None
 
                 title = item.find("title").get_text(strip=True) if item.find("title") else ""
                 link = item.find("link").get_text(strip=True) if item.find("link") else ""
+                source_tag = item.find("source")
+                publisher = source_tag.get_text(strip=True) if source_tag else ""
+                publisher_url = source_tag.get("url", "").strip() if source_tag else ""
                 if not title or not link:
                     continue
                 records.append(
@@ -53,7 +53,10 @@ class NewsCrawler(BaseCrawler):
                         title=title,
                         url=link,
                         published_at=published_at,
-                        metadata={},
+                        metadata={
+                            "publisher": publisher,
+                            "publisher_url": publisher_url,
+                        },
                     )
                 )
         return records

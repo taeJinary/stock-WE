@@ -7,7 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from services.interest_service import get_top_interest_stocks
-from services.news_service import get_related_news
+from services.news_service import get_latest_news_for_symbols
 from services.stock_service import get_market_summary
 
 logger = logging.getLogger(__name__)
@@ -25,10 +25,8 @@ def _collect_briefing_input():
         for stock in top_interest_stocks
     ]
 
-    headlines = []
-    for stock in top_interest_stocks[:3]:
-        for item in get_related_news(stock_symbol=stock.symbol, limit=2):
-            headlines.append({"symbol": stock.symbol, "title": item["title"]})
+    top_symbols = [stock.symbol for stock in top_interest_stocks[:3]]
+    headlines = get_latest_news_for_symbols(top_symbols, limit_per_symbol=2)
 
     return {
         "generated_at": datetime.now(tz=timezone.get_current_timezone()).isoformat(),

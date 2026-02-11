@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Interest, Price, Stock
+from .models import Interest, NewsItem, Price, Stock
 
 
 @admin.register(Stock)
@@ -22,3 +22,10 @@ class InterestAdmin(admin.ModelAdmin):
     list_display = ("stock", "source", "recorded_at", "mentions", "sentiment_score")
     list_filter = ("source", "recorded_at")
     search_fields = ("stock__symbol",)
+
+
+@admin.register(NewsItem)
+class NewsItemAdmin(admin.ModelAdmin):
+    list_display = ("stock", "source", "publisher", "published_at", "created_at")
+    list_filter = ("source", "publisher", "published_at")
+    search_fields = ("stock__symbol", "title", "publisher")

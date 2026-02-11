@@ -127,6 +127,9 @@
     {% for item in news_items %}
       <li>
         <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>
+        {% if item.publisher %}
+          <span class="meta-note">({{ item.publisher }})</span>
+        {% endif %}
       </li>
     {% empty %}
       <li>No news data.</li>
