@@ -1,0 +1,49 @@
+<section class="panel" id="anomaly-alert-panel">
+  <div class="panel-head">
+    <h2>Anomaly Alerts</h2>
+    <button
+      type="button"
+      class="btn-refresh"
+      hx-get="{% url 'dashboard:anomaly-alert-partial' %}"
+      hx-target="#anomaly-alert-panel"
+      hx-swap="outerHTML"
+    >
+      Refresh
+    </button>
+  </div>
+
+  {% if has_anomaly_data %}
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Recent</th>
+          <th>Expected</th>
+          <th>Surge</th>
+          <th>Z-Score</th>
+          <th>Severity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in anomaly_alerts %}
+          <tr>
+            <td>
+              <a href="{% url 'stocks:detail' item.symbol %}">{{ item.symbol }}</a>
+            </td>
+            <td>{{ item.recent_mentions }}</td>
+            <td>{{ item.expected_mentions }}</td>
+            <td>{{ item.surge_ratio }}x</td>
+            <td>{{ item.z_score }}</td>
+            <td>
+              <span class="severity-badge severity-{{ item.severity }}">
+                {{ item.severity|upper }}
+              </span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-note">No anomaly alerts at this time.</p>
+  {% endif %}
+</section>

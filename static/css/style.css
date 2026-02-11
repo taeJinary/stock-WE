@@ -238,3 +238,36 @@ button {
   line-height: 1.2;
   background: rgba(13, 148, 136, calc(0.09 + (var(--topic-weight, 0) * 0.26)));
 }
+
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--line);
+}
+
+.severity-high {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.severity-medium {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.anomaly-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.anomaly-main {
+  margin: 0;
+}
