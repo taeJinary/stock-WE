@@ -1,8 +1,11 @@
 import logging
+from datetime import date
 
 from celery import chain, shared_task
 from django.utils import timezone
 
+from apps.briefing.models import DailyBriefing
+from services.briefing_delivery_service import send_daily_briefing_email
 from services.briefing_generator import create_daily_briefing
 from services.interest_service import collect_interest_snapshot
 from services.news_service import collect_news_items
@@ -72,6 +75,29 @@ def generate_daily_briefing_task(self, previous_result=None):
     }
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=300)
+def send_daily_briefing_email_task(self, previous_result=None):
+    briefing_date = timezone.localdate()
+    if isinstance(previous_result, dict) and previous_result.get("briefing_date"):
+        try:
+            briefing_date = date.fromisoformat(previous_result["briefing_date"])
+        except ValueError:
+            briefing_date = timezone.localdate()
+
+    result = send_daily_briefing_email(briefing_date=briefing_date)
+    if result.get("status") == "error":
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=RuntimeError(result.get("message", "email delivery error")))
+    if result.get("status") == "partial":
+        logger.warning("Briefing email delivery partial: %s", result)
+
+    email_status = result.get("email_status")
+    if email_status == DailyBriefing.EmailStatus.FAILED and self.request.retries < self.max_retries:
+        raise self.retry(exc=RuntimeError("All briefing email deliveries failed"))
+
+    return result
+
+
 @shared_task
 def run_daily_pipeline_task():
     workflow = chain(
@@ -79,6 +105,7 @@ def run_daily_pipeline_task():
         sync_news_data_task.s(),
         sync_interest_data_task.s(),
         generate_daily_briefing_task.s(),
+        send_daily_briefing_email_task.s(),
     )
     async_result = workflow.apply_async()
     return {
