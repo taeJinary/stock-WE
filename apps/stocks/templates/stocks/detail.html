@@ -9,8 +9,57 @@
   <p><strong>Sector:</strong> {{ stock.sector|default:"-" }}</p>
 </section>
 
+{% if request.user.is_authenticated %}
 <section class="panel">
-  <h3>가격/관심도 추이</h3>
+  <h3>Watchlists</h3>
+  {% if watchlists %}
+    <form method="post" action="{% url 'watchlist:add-item' stock.symbol %}" class="watchlist-inline-form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <label for="watchlist-select">Watchlist</label>
+      <select id="watchlist-select" name="watchlist_id">
+        {% for watchlist in watchlists %}
+          <option value="{{ watchlist.id }}">{{ watchlist.name }}{% if watchlist.is_default %} (default){% endif %}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="note" maxlength="255" placeholder="Optional note">
+      <button type="submit">Add to Watchlist</button>
+    </form>
+
+    <ul class="watchlist-chip-list">
+      {% for watchlist in watchlists %}
+        {% if watchlist.id in watchlist_ids_with_stock %}
+          <li>
+            <span>{{ watchlist.name }}</span>
+            <form method="post" action="{% url 'watchlist:remove-item' stock.symbol %}" class="inline-form">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <input type="hidden" name="watchlist_id" value="{{ watchlist.id }}">
+              <button type="submit">Remove</button>
+            </form>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-note">No watchlists yet. Create one from the Watchlists page.</p>
+  {% endif %}
+
+  {% if watchlist_limit %}
+    <p class="meta-note">Free plan limit: up to {{ watchlist_limit }} watchlists.</p>
+  {% else %}
+    <p class="meta-note">Current plan: unlimited watchlists.</p>
+  {% endif %}
+</section>
+{% else %}
+<section class="panel">
+  <h3>Watchlists</h3>
+  <p><a href="{% url 'accounts:login' %}">Login</a> to add this stock to your watchlists.</p>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h3>Price and Interest Trend</h3>
   <canvas id="stock-overlay-chart" height="120"></canvas>
   {{ price_chart_data|json_script:"price-chart-data" }}
   {{ interest_chart_data|json_script:"interest-chart-data" }}
@@ -47,7 +96,7 @@
 </section>
 
 <section class="panel">
-  <h3>최근 관심도</h3>
+  <h3>Recent Interest</h3>
   <table>
     <thead>
       <tr>
@@ -66,7 +115,7 @@
           <td>{{ row.sentiment_score|default:"-" }}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="4">관심도 데이터가 없습니다.</td></tr>
+        <tr><td colspan="4">No interest data.</td></tr>
       {% endfor %}
     </tbody>
   </table>

@@ -4,7 +4,9 @@ from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
+from apps.watchlist.models import Watchlist, WatchlistItem
 from services.news_service import get_related_news
+from services.watchlist_service import get_watchlist_limit
 
 from .models import Stock
 
@@ -46,6 +48,23 @@ def stock_detail(request, symbol):
         if row["day"] is not None
     ]
 
+    user_watchlists = []
+    watchlist_ids_with_stock = set()
+    watchlist_limit = None
+    if request.user.is_authenticated:
+        user_watchlists = list(
+            Watchlist.objects.filter(user=request.user)
+            .prefetch_related("items__stock")
+            .all()
+        )
+        watchlist_ids_with_stock = set(
+            WatchlistItem.objects.filter(
+                watchlist__user=request.user,
+                stock=stock,
+            ).values_list("watchlist_id", flat=True)
+        )
+        watchlist_limit = get_watchlist_limit(request.user)
+
     return render(
         request,
         "stocks/detail.html",
@@ -56,5 +75,8 @@ def stock_detail(request, symbol):
             "news_items": news,
             "price_chart_data": price_chart_data,
             "interest_chart_data": interest_chart_data,
+            "watchlists": user_watchlists,
+            "watchlist_ids_with_stock": watchlist_ids_with_stock,
+            "watchlist_limit": watchlist_limit,
         },
     )

@@ -4,23 +4,59 @@
 
 {% block content %}
 <section class="panel">
-  <h2>My Watchlists</h2>
-  {% for watchlist in watchlists %}
-    <article class="watchlist-block">
-      <h3>{{ watchlist.name }}{% if watchlist.is_default %} (default){% endif %}</h3>
-      <ul>
-        {% for item in watchlist.items.all %}
-          <li>
-            <a href="{% url 'stocks:detail' item.stock.symbol %}">{{ item.stock.symbol }}</a>
-            {% if item.note %}- {{ item.note }}{% endif %}
-          </li>
-        {% empty %}
-          <li>No items.</li>
-        {% endfor %}
-      </ul>
-    </article>
-  {% empty %}
-    <p>No watchlists yet.</p>
-  {% endfor %}
+  <div class="panel-head">
+    <h2>My Watchlists</h2>
+    {% if watchlist_limit %}
+      <p class="meta-note">Free plan: up to {{ watchlist_limit }} watchlists</p>
+    {% else %}
+      <p class="meta-note">Current plan: unlimited watchlists</p>
+    {% endif %}
+  </div>
+
+  <form method="post" action="{% url 'watchlist:create' %}" class="watchlist-inline-form">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
+    <label for="watchlist-name">New Watchlist</label>
+    <input id="watchlist-name" type="text" name="name" maxlength="120" required placeholder="e.g. US Tech">
+    <button type="submit">Create</button>
+  </form>
 </section>
+
+{% for watchlist in watchlists %}
+  <section class="panel watchlist-block">
+    <div class="panel-head">
+      <h3>{{ watchlist.name }}{% if watchlist.is_default %} (default){% endif %}</h3>
+      <form method="post" action="{% url 'watchlist:delete' watchlist.id %}" class="inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
+        <button type="submit">Delete</button>
+      </form>
+    </div>
+
+    <ul>
+      {% for item in watchlist.items.all %}
+        <li class="watchlist-item-row">
+          <div>
+            <a href="{% url 'stocks:detail' item.stock.symbol %}">{{ item.stock.symbol }}</a>
+            {% if item.note %}
+              <span class="meta-note">- {{ item.note }}</span>
+            {% endif %}
+          </div>
+          <form method="post" action="{% url 'watchlist:remove-item' item.stock.symbol %}" class="inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="watchlist_id" value="{{ watchlist.id }}">
+            <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
+            <button type="submit">Remove</button>
+          </form>
+        </li>
+      {% empty %}
+        <li>No items.</li>
+      {% endfor %}
+    </ul>
+  </section>
+{% empty %}
+  <section class="panel">
+    <p>No watchlists yet.</p>
+  </section>
+{% endfor %}
 {% endblock %}
