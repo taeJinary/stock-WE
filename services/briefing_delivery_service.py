@@ -59,19 +59,22 @@ def send_daily_briefing_email(briefing_date=None, force=False) -> dict[str, Any]
             "status": "skipped",
             "reason": "ALREADY_SENT",
             "briefing_date": str(target_date),
-            "recipient_count": briefing.email_recipient_count,
+            "sent_count": briefing.email_sent_count,
+            "target_count": briefing.email_target_count,
         }
 
     recipients = _active_recipient_emails(target_date=target_date)
     if not recipients:
         briefing.email_status = DailyBriefing.EmailStatus.SKIPPED
-        briefing.email_recipient_count = 0
+        briefing.email_sent_count = 0
+        briefing.email_target_count = 0
         briefing.email_sent_at = None
         briefing.email_failure_reason = "NO_ACTIVE_RECIPIENTS"
         briefing.save(
             update_fields=[
                 "email_status",
-                "email_recipient_count",
+                "email_sent_count",
+                "email_target_count",
                 "email_sent_at",
                 "email_failure_reason",
                 "updated_at",
@@ -81,7 +84,8 @@ def send_daily_briefing_email(briefing_date=None, force=False) -> dict[str, Any]
             "status": "skipped",
             "reason": "NO_ACTIVE_RECIPIENTS",
             "briefing_date": str(target_date),
-            "recipient_count": 0,
+            "sent_count": 0,
+            "target_count": 0,
         }
 
     subject, message = _build_email_message(briefing)
@@ -115,13 +119,15 @@ def send_daily_briefing_email(briefing_date=None, force=False) -> dict[str, Any]
         )[:255]
 
     briefing.email_status = email_status
-    briefing.email_recipient_count = sent_count
+    briefing.email_sent_count = sent_count
+    briefing.email_target_count = len(recipients)
     briefing.email_sent_at = timezone.now() if sent_count > 0 else None
     briefing.email_failure_reason = failure_message
     briefing.save(
         update_fields=[
             "email_status",
-            "email_recipient_count",
+            "email_sent_count",
+            "email_target_count",
             "email_sent_at",
             "email_failure_reason",
             "updated_at",

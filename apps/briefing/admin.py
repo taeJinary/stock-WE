@@ -10,7 +10,8 @@ class DailyBriefingAdmin(admin.ModelAdmin):
         "title",
         "generated_by",
         "email_status",
-        "email_recipient_count",
+        "email_sent_count",
+        "email_target_count",
         "email_sent_at",
         "created_at",
     )

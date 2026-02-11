@@ -11,7 +11,8 @@
         <h3>{{ briefing.briefing_date }} - {{ briefing.title }}</h3>
         <p class="meta-note">
           email={{ briefing.email_status }}
-          sent={{ briefing.email_recipient_count }}
+          sent={{ briefing.email_sent_count }}
+          target={{ briefing.email_target_count }}
           {% if briefing.email_sent_at %}| at {{ briefing.email_sent_at }}{% endif %}
         </p>
         <p>{{ briefing.summary }}</p>
