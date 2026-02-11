@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from services.briefing_generator import create_daily_briefing
 from services.interest_service import collect_interest_snapshot
+from services.news_service import collect_news_items
 from services.stock_service import refresh_market_prices
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,17 @@ def sync_interest_data_task(self, previous_result=None):
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=600)
+def sync_news_data_task(self, previous_result=None):
+    result = collect_news_items()
+    if result.get("status") == "error":
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=RuntimeError(result.get("message", "news sync error")))
+    if result.get("status") == "partial":
+        logger.warning("News sync partial: %s", result)
+    return result
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=600)
 def generate_daily_briefing_task(self, previous_result=None):
     today = timezone.localdate()
     briefing = create_daily_briefing(target_date=today)
@@ -64,6 +76,7 @@ def generate_daily_briefing_task(self, previous_result=None):
 def run_daily_pipeline_task():
     workflow = chain(
         sync_market_data_task.s(),
+        sync_news_data_task.s(),
         sync_interest_data_task.s(),
         generate_daily_briefing_task.s(),
     )

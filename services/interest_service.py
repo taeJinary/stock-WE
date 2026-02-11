@@ -6,15 +6,14 @@ from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from apps.stocks.models import Interest, Stock
-from crawler import NewsCrawler, NaverCrawler, RedditCrawler
+from apps.stocks.models import Interest, NewsItem, Stock
+from crawler import NaverCrawler, RedditCrawler
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_SOURCE_CRAWLERS = (
     RedditCrawler,
     NaverCrawler,
-    NewsCrawler,
 )
 
 
@@ -31,9 +30,12 @@ def collect_interest_snapshot(limit_stocks=20, limit_per_symbol=3):
             "message": "No active stocks available for interest collection",
         }
 
-    collected = []
     source_stats = {}
     errors = []
+    now = timezone.now()
+    grouped = {}
+    stock_by_symbol = {stock.symbol: stock for stock in stocks}
+
     for crawler_cls in DEFAULT_SOURCE_CRAWLERS:
         crawler = crawler_cls()
         try:
@@ -52,46 +54,81 @@ def collect_interest_snapshot(limit_stocks=20, limit_per_symbol=3):
                 }
             )
         source_stats[crawler.source] = len(records)
-        collected.extend(records)
+        for record in records:
+            stock = stock_by_symbol.get(record.symbol)
+            if not stock:
+                continue
+            key = (stock.id, record.source)
+            if key not in grouped:
+                grouped[key] = {
+                    "stock": stock,
+                    "source": record.source,
+                    "mentions": 0,
+                    "samples": [],
+                }
+            grouped[key]["mentions"] += 1
+            if len(grouped[key]["samples"]) < 5:
+                grouped[key]["samples"].append(
+                    {
+                        "title": record.title,
+                        "url": record.url,
+                        "published_at": (
+                            record.published_at.isoformat() if record.published_at else None
+                        ),
+                    }
+                )
 
-    if not collected:
+    news_since = timezone.now() - timedelta(hours=24)
+    news_records = (
+        NewsItem.objects.filter(stock__in=stocks, created_at__gte=news_since)
+        .order_by("-published_at", "-id")
+    )
+    news_by_symbol = {}
+    for item in news_records:
+        bucket = news_by_symbol.setdefault(
+            item.stock.symbol,
+            {
+                "count": 0,
+                "samples": [],
+            },
+        )
+        bucket["count"] += 1
+        if len(bucket["samples"]) < 5:
+            bucket["samples"].append(
+                {
+                    "title": item.title,
+                    "url": item.url,
+                    "published_at": item.published_at.isoformat() if item.published_at else None,
+                }
+            )
+
+    news_total_mentions = 0
+    for symbol, payload in news_by_symbol.items():
+        stock = stock_by_symbol.get(symbol)
+        if not stock:
+            continue
+        key = (stock.id, Interest.Source.NEWS)
+        grouped[key] = {
+            "stock": stock,
+            "source": Interest.Source.NEWS,
+            "mentions": payload["count"],
+            "samples": payload["samples"],
+        }
+        news_total_mentions += payload["count"]
+    source_stats[str(Interest.Source.NEWS)] = news_total_mentions
+
+    if not grouped:
         logger.warning("Interest collection returned zero records")
         return {
             "status": "partial",
             "inserted": 0,
             "sources": source_stats,
-            "message": "No mentions were collected from crawlers",
+            "message": "No mentions were collected from sources",
             "errors": errors,
         }
 
-    now = timezone.now()
-    grouped = {}
-    stock_by_symbol = {stock.symbol: stock for stock in stocks}
-    for record in collected:
-        stock = stock_by_symbol.get(record.symbol)
-        if not stock:
-            continue
-        key = (stock.id, record.source)
-        if key not in grouped:
-            grouped[key] = {
-                "stock": stock,
-                "source": record.source,
-                "mentions": 0,
-                "samples": [],
-            }
-        grouped[key]["mentions"] += 1
-        if len(grouped[key]["samples"]) < 5:
-            grouped[key]["samples"].append(
-                {
-                    "title": record.title,
-                    "url": record.url,
-                    "published_at": (
-                        record.published_at.isoformat() if record.published_at else None
-                    ),
-                }
-            )
-
     inserted = 0
+    total_mentions = 0
     with transaction.atomic():
         for group in grouped.values():
             Interest.objects.create(
@@ -102,12 +139,13 @@ def collect_interest_snapshot(limit_stocks=20, limit_per_symbol=3):
                 metadata={"samples": group["samples"]},
             )
             inserted += 1
+            total_mentions += group["mentions"]
 
     return {
         "status": "success",
         "inserted": inserted,
         "sources": source_stats,
-        "total_mentions": len(collected),
+        "total_mentions": total_mentions,
         "errors": errors,
     }
 
