@@ -9,6 +9,11 @@
     {% for briefing in briefings %}
       <li class="briefing-item">
         <h3>{{ briefing.briefing_date }} - {{ briefing.title }}</h3>
+        <p class="meta-note">
+          email={{ briefing.email_status }}
+          sent={{ briefing.email_recipient_count }}
+          {% if briefing.email_sent_at %}| at {{ briefing.email_sent_at }}{% endif %}
+        </p>
         <p>{{ briefing.summary }}</p>
       </li>
     {% empty %}

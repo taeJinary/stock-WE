@@ -112,6 +112,10 @@ def create_daily_briefing(target_date=None):
             "summary": summary,
             "discussed_symbols": discussed_symbols,
             "generated_by": generated_by,
+            "email_status": DailyBriefing.EmailStatus.PENDING,
+            "email_recipient_count": 0,
+            "email_sent_at": None,
+            "email_failure_reason": "",
         },
     )
     return briefing
