@@ -1,0 +1,23 @@
+<section class="panel" id="interest-timeline-panel">
+  <div class="panel-head">
+    <h2>Interest Timeline (24h)</h2>
+    <button
+      type="button"
+      class="btn-refresh"
+      hx-get="{% url 'dashboard:interest-timeline-partial' %}"
+      hx-target="#interest-timeline-panel"
+      hx-swap="outerHTML"
+    >
+      Refresh
+    </button>
+  </div>
+
+  {% if has_timeline_data %}
+    <div class="chart-wrap">
+      <canvas id="dashboard-interest-timeline-chart" height="120"></canvas>
+    </div>
+    {{ interest_timeline_data|json_script:"dashboard-interest-timeline-data" }}
+  {% else %}
+    <p class="empty-note">No timeline data yet.</p>
+  {% endif %}
+</section>

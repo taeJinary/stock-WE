@@ -194,3 +194,31 @@ button {
   margin: 0;
   font-size: 0.9rem;
 }
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.65rem;
+}
+
+.heatmap-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: rgba(15, 118, 110, calc(0.08 + (var(--intensity, 0) * 0.32)));
+}
+
+.heatmap-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.heatmap-card p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.chart-wrap {
+  width: 100%;
+  min-height: 300px;
+}
