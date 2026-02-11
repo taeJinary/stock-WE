@@ -23,3 +23,6 @@ Thumbs.db
 
 # Static build artifacts
 staticfiles/
+
+# Local task log
+Task.md

@@ -33,9 +33,24 @@ def collect_interest_snapshot(limit_stocks=20, limit_per_symbol=3):
 
     collected = []
     source_stats = {}
+    errors = []
     for crawler_cls in DEFAULT_SOURCE_CRAWLERS:
         crawler = crawler_cls()
-        records = crawler.fetch(stocks=stocks, limit_per_symbol=limit_per_symbol)
+        try:
+            records = crawler.fetch(stocks=stocks, limit_per_symbol=limit_per_symbol)
+        except Exception as exc:  # pragma: no cover
+            logger.error(
+                "Interest crawler failed (%s): %s",
+                crawler.source,
+                exc,
+            )
+            records = []
+            errors.append(
+                {
+                    "source": crawler.source,
+                    "message": str(exc),
+                }
+            )
         source_stats[crawler.source] = len(records)
         collected.extend(records)
 
@@ -46,6 +61,7 @@ def collect_interest_snapshot(limit_stocks=20, limit_per_symbol=3):
             "inserted": 0,
             "sources": source_stats,
             "message": "No mentions were collected from crawlers",
+            "errors": errors,
         }
 
     now = timezone.now()
@@ -92,6 +108,7 @@ def collect_interest_snapshot(limit_stocks=20, limit_per_symbol=3):
         "inserted": inserted,
         "sources": source_stats,
         "total_mentions": len(collected),
+        "errors": errors,
     }
 
 
