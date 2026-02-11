@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Watchlists{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>My Watchlists</h2>
+  {% for watchlist in watchlists %}
+    <article class="watchlist-block">
+      <h3>{{ watchlist.name }}{% if watchlist.is_default %} (default){% endif %}</h3>
+      <ul>
+        {% for item in watchlist.items.all %}
+          <li>
+            <a href="{% url 'stocks:detail' item.stock.symbol %}">{{ item.stock.symbol }}</a>
+            {% if item.note %}- {{ item.note }}{% endif %}
+          </li>
+        {% empty %}
+          <li>No items.</li>
+        {% endfor %}
+      </ul>
+    </article>
+  {% empty %}
+    <p>No watchlists yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}

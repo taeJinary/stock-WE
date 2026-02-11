@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}WEStock Dashboard{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Market Summary</h2>
+  <div class="summary-grid">
+    {% for item in market_summary %}
+      <article class="summary-card">
+        <h3>{{ item.label }}</h3>
+        <p class="value">{{ item.price }}</p>
+        <p class="{% if item.change_rate >= 0 %}up{% else %}down{% endif %}">
+          {{ item.change_rate }}%
+        </p>
+      </article>
+    {% empty %}
+      <p>No market data yet.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <h2>관심도 급등 종목</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>Name</th>
+        <th>관심도</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for stock in top_interest_stocks %}
+        <tr>
+          <td>
+            <a href="{% url 'stocks:detail' stock.symbol %}">{{ stock.symbol }}</a>
+          </td>
+          <td>{{ stock.name }}</td>
+          <td>{{ stock.total_mentions }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">집계된 관심도 데이터가 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

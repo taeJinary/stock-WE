@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Stocks{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Stock Search</h2>
+  <form method="get" class="inline-form">
+    <input type="text" name="q" value="{{ query }}" placeholder="symbol or name" />
+    <button type="submit">Search</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Results</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>Name</th>
+        <th>Market</th>
+        <th>Sector</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for stock in stocks %}
+        <tr>
+          <td><a href="{% url 'stocks:detail' stock.symbol %}">{{ stock.symbol }}</a></td>
+          <td>{{ stock.name }}</td>
+          <td>{{ stock.get_market_display }}</td>
+          <td>{{ stock.sector|default:"-" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">No data.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
