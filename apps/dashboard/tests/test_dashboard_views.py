@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -57,3 +58,91 @@ class DashboardViewsTests(TestCase):
                 response = self.client.get(reverse(name))
                 self.assertEqual(response.status_code, 200)
                 self.assertTemplateUsed(response, template_name)
+
+    def test_market_summary_partial_only_calls_market_service(self):
+        with (
+            patch(
+                "apps.dashboard.views.get_market_summary",
+                return_value=[{"label": "KOSPI", "price": "1.00", "change_rate": 0.0}],
+            ) as mock_market,
+            patch("apps.dashboard.views.get_top_interest_stocks") as mock_top,
+            patch("apps.dashboard.views.get_sector_interest_heatmap") as mock_heatmap,
+            patch("apps.dashboard.views.get_interest_timeline") as mock_timeline,
+            patch("apps.dashboard.views.detect_interest_anomalies") as mock_anomaly,
+        ):
+            response = self.client.get(reverse("dashboard:market-summary-partial"))
+
+        self.assertEqual(response.status_code, 200)
+        mock_market.assert_called_once()
+        mock_top.assert_not_called()
+        mock_heatmap.assert_not_called()
+        mock_timeline.assert_not_called()
+        mock_anomaly.assert_not_called()
+
+    def test_top_interest_partial_only_calls_interest_service(self):
+        with (
+            patch("apps.dashboard.views.get_market_summary") as mock_market,
+            patch("apps.dashboard.views.get_top_interest_stocks", return_value=[]) as mock_top,
+            patch("apps.dashboard.views.get_sector_interest_heatmap") as mock_heatmap,
+            patch("apps.dashboard.views.get_interest_timeline") as mock_timeline,
+            patch("apps.dashboard.views.detect_interest_anomalies") as mock_anomaly,
+        ):
+            response = self.client.get(reverse("dashboard:top-interest-partial"))
+
+        self.assertEqual(response.status_code, 200)
+        mock_market.assert_not_called()
+        mock_top.assert_called_once()
+        mock_heatmap.assert_not_called()
+        mock_timeline.assert_not_called()
+        mock_anomaly.assert_not_called()
+
+    def test_heatmap_partial_only_calls_heatmap_service(self):
+        with (
+            patch("apps.dashboard.views.get_market_summary") as mock_market,
+            patch("apps.dashboard.views.get_top_interest_stocks") as mock_top,
+            patch("apps.dashboard.views.get_sector_interest_heatmap", return_value=[]) as mock_heatmap,
+            patch("apps.dashboard.views.get_interest_timeline") as mock_timeline,
+            patch("apps.dashboard.views.detect_interest_anomalies") as mock_anomaly,
+        ):
+            response = self.client.get(reverse("dashboard:interest-heatmap-partial"))
+
+        self.assertEqual(response.status_code, 200)
+        mock_market.assert_not_called()
+        mock_top.assert_not_called()
+        mock_heatmap.assert_called_once()
+        mock_timeline.assert_not_called()
+        mock_anomaly.assert_not_called()
+
+    def test_timeline_partial_only_calls_timeline_service(self):
+        with (
+            patch("apps.dashboard.views.get_market_summary") as mock_market,
+            patch("apps.dashboard.views.get_top_interest_stocks") as mock_top,
+            patch("apps.dashboard.views.get_sector_interest_heatmap") as mock_heatmap,
+            patch("apps.dashboard.views.get_interest_timeline", return_value=[]) as mock_timeline,
+            patch("apps.dashboard.views.detect_interest_anomalies") as mock_anomaly,
+        ):
+            response = self.client.get(reverse("dashboard:interest-timeline-partial"))
+
+        self.assertEqual(response.status_code, 200)
+        mock_market.assert_not_called()
+        mock_top.assert_not_called()
+        mock_heatmap.assert_not_called()
+        mock_timeline.assert_called_once()
+        mock_anomaly.assert_not_called()
+
+    def test_anomaly_partial_only_calls_anomaly_service(self):
+        with (
+            patch("apps.dashboard.views.get_market_summary") as mock_market,
+            patch("apps.dashboard.views.get_top_interest_stocks") as mock_top,
+            patch("apps.dashboard.views.get_sector_interest_heatmap") as mock_heatmap,
+            patch("apps.dashboard.views.get_interest_timeline") as mock_timeline,
+            patch("apps.dashboard.views.detect_interest_anomalies", return_value=[]) as mock_anomaly,
+        ):
+            response = self.client.get(reverse("dashboard:anomaly-alert-partial"))
+
+        self.assertEqual(response.status_code, 200)
+        mock_market.assert_not_called()
+        mock_top.assert_not_called()
+        mock_heatmap.assert_not_called()
+        mock_timeline.assert_not_called()
+        mock_anomaly.assert_called_once()
