@@ -84,7 +84,8 @@ def collect_interest_snapshot(limit_stocks=20, limit_per_symbol=3):
 
     news_since = timezone.now() - timedelta(hours=24)
     news_records = (
-        NewsItem.objects.filter(stock__in=stocks, created_at__gte=news_since)
+        NewsItem.objects.select_related("stock")
+        .filter(stock__in=stocks, created_at__gte=news_since)
         .order_by("-published_at", "-id")
     )
     news_by_symbol = {}

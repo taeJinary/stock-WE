@@ -2,7 +2,9 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from apps.stocks.models import Interest, NewsItem, Stock
@@ -153,3 +155,30 @@ class InterestServiceTests(TestCase):
             anomalies = detect_interest_anomalies(limit=10)
 
         self.assertGreaterEqual(len(anomalies), 1)
+
+    def test_collect_interest_snapshot_news_query_count_is_bounded(self):
+        now = timezone.now()
+        for idx in range(30):
+            NewsItem.objects.create(
+                stock=self.stock,
+                title=f"News {idx}",
+                url=f"https://example.com/news/{idx}",
+                publisher="Example",
+                published_at=now - timedelta(minutes=idx),
+            )
+
+        class EmptyCrawler:
+            source = Interest.Source.REDDIT
+
+            def fetch(self, stocks, limit_per_symbol=3):
+                return []
+
+        with patch("services.interest_service.DEFAULT_SOURCE_CRAWLERS", (EmptyCrawler,)):
+            with CaptureQueriesContext(connection) as queries:
+                result = collect_interest_snapshot(limit_stocks=5, limit_per_symbol=3)
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["inserted"], 1)
+        self.assertEqual(result["sources"][Interest.Source.REDDIT], 0)
+        self.assertEqual(result["sources"][Interest.Source.NEWS], 30)
+        self.assertLessEqual(len(queries), 10)
