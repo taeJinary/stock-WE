@@ -65,13 +65,13 @@ def _extract_text_from_gemini(payload):
 
 def _generate_with_gemini(prompt):
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent"
-    params = {"key": settings.GEMINI_API_KEY}
     body = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.5, "maxOutputTokens": 900},
     }
-    with httpx.Client(timeout=20.0) as client:
-        response = client.post(endpoint, params=params, json=body)
+    headers = {"x-goog-api-key": settings.GEMINI_API_KEY}
+    with httpx.Client(timeout=20.0, headers=headers) as client:
+        response = client.post(endpoint, json=body)
         response.raise_for_status()
         text = _extract_text_from_gemini(response.json())
         if not text:
