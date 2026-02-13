@@ -1,4 +1,5 @@
 import os
+import sys
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
@@ -100,6 +101,7 @@ _load_dotenv(BASE_DIR / ".env")
 
 DJANGO_ENV = os.getenv("DJANGO_ENV", "development").strip().lower()
 IS_PRODUCTION = DJANGO_ENV in {"production", "prod"}
+IS_TESTING = "test" in sys.argv
 
 DEBUG = _env_bool("DEBUG", default=not IS_PRODUCTION)
 if IS_PRODUCTION and DEBUG:
@@ -145,7 +147,7 @@ REST_FRAMEWORK = {
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
 ]
-if _module_exists("whitenoise"):
+if _module_exists("whitenoise") and not DEBUG:
     MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")
 MIDDLEWARE += [
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -208,7 +210,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
-if _module_exists("whitenoise"):
+if _module_exists("whitenoise") and not DEBUG:
     STORAGES = {
         "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
         "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
@@ -236,6 +238,27 @@ SECURE_REFERRER_POLICY = os.getenv("SECURE_REFERRER_POLICY", "same-origin")
 SECURE_PROXY_SSL_HEADER = _env_secure_proxy_header()
 
 REDIS_URL = _require_env("REDIS_URL")
+if IS_TESTING:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "westock-test-cache",
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+        }
+    }
+
+CACHE_TTL_MARKET_SUMMARY = _env_int("CACHE_TTL_MARKET_SUMMARY", default=300)
+CACHE_TTL_TOP_INTEREST = _env_int("CACHE_TTL_TOP_INTEREST", default=300)
+CACHE_TTL_HEATMAP = _env_int("CACHE_TTL_HEATMAP", default=600)
+CACHE_TTL_TIMELINE = _env_int("CACHE_TTL_TIMELINE", default=600)
+CACHE_TTL_ANOMALIES = _env_int("CACHE_TTL_ANOMALIES", default=300)
+
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_ACCEPT_CONTENT = ["json"]
