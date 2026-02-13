@@ -1,6 +1,7 @@
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -10,6 +11,7 @@ from apps.stocks.models import Interest, Price, Stock
 
 class DashboardViewsTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.stock = Stock.objects.create(
             symbol="KOSPI",
             name="KOSPI Index",
@@ -146,3 +148,27 @@ class DashboardViewsTests(TestCase):
         mock_heatmap.assert_not_called()
         mock_timeline.assert_not_called()
         mock_anomaly.assert_called_once()
+
+    def test_market_summary_partial_uses_cache_between_requests(self):
+        with patch(
+            "apps.dashboard.views.get_market_summary",
+            return_value=[{"label": "KOSPI", "price": "1.00", "change_rate": 0.0}],
+        ) as mock_market:
+            first = self.client.get(reverse("dashboard:market-summary-partial"))
+            second = self.client.get(reverse("dashboard:market-summary-partial"))
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        mock_market.assert_called_once()
+
+    def test_top_interest_partial_uses_cache_between_requests(self):
+        with patch(
+            "apps.dashboard.views.get_top_interest_stocks",
+            return_value=[],
+        ) as mock_top:
+            first = self.client.get(reverse("dashboard:top-interest-partial"))
+            second = self.client.get(reverse("dashboard:top-interest-partial"))
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        mock_top.assert_called_once()
