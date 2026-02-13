@@ -1,12 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}My Profile{% endblock %}
+{% block title %}프로필 — WEStock{% endblock %}
 
 {% block content %}
-<section class="panel">
-  <h2>Profile</h2>
-  <p><strong>User:</strong> {{ request.user.username }}</p>
-  <p><strong>Email:</strong> {{ request.user.email|default:"-" }}</p>
-  <p><strong>Plan:</strong> {{ subscription.plan|default:"free" }}</p>
+<section class="panel narrow">
+  <div class="panel-head">
+    <h2>내 프로필</h2>
+  </div>
+  <div class="form-group">
+    <label>사용자명</label>
+    <p style="padding: 0.5rem 0;">{{ request.user.username }}</p>
+  </div>
+  <div class="form-group">
+    <label>이메일</label>
+    <p style="padding: 0.5rem 0;">{{ request.user.email|default:"미설정" }}</p>
+  </div>
+  <div class="form-group">
+    <label>플랜</label>
+    <p style="padding: 0.5rem 0;">{{ subscription.plan|default:"Free" }}</p>
+  </div>
 </section>
 {% endblock %}

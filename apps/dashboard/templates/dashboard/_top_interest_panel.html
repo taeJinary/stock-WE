@@ -1,39 +1,34 @@
 <section class="panel" id="top-interest-panel">
   <div class="panel-head">
     <h2>관심도 급등 종목</h2>
-    <button
-      type="button"
-      class="btn-refresh"
-      hx-get="{% url 'dashboard:top-interest-partial' %}"
-      hx-target="#top-interest-panel"
-      hx-swap="outerHTML"
-    >
+    <button type="button" class="btn-refresh" hx-get="{% url 'dashboard:top-interest-partial' %}"
+      hx-target="#top-interest-panel" hx-swap="outerHTML">
       새로고침
     </button>
   </div>
 
   {% if has_interest_data %}
-    <table>
-      <thead>
-        <tr>
-          <th>Symbol</th>
-          <th>Name</th>
-          <th>관심도</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for stock in top_interest_stocks %}
-          <tr>
-            <td>
-              <a href="{% url 'stocks:detail' stock.symbol %}">{{ stock.symbol }}</a>
-            </td>
-            <td>{{ stock.name }}</td>
-            <td>{{ stock.total_mentions }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <table>
+    <thead>
+      <tr>
+        <th>종목코드</th>
+        <th>종목명</th>
+        <th>관심도</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for stock in top_interest_stocks %}
+      <tr>
+        <td>
+          <a href="{% url 'stocks:detail' stock.symbol %}">{{ stock.symbol }}</a>
+        </td>
+        <td>{{ stock.name }}</td>
+        <td>{{ stock.total_mentions }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% else %}
-    <p class="empty-note">집계된 관심도 데이터가 없습니다.</p>
+  <p class="empty-note">집계된 관심도 데이터가 없습니다.</p>
   {% endif %}
 </section>

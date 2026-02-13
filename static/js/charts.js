@@ -57,18 +57,18 @@ function renderStockOverlayChart() {
       labels: labels,
       datasets: [
         {
-          label: "Close Price",
+          label: "종가",
           data: priceSeries,
-          borderColor: "#1d4ed8",
-          backgroundColor: "rgba(29, 78, 216, 0.12)",
+          borderColor: "#60a5fa",
+          backgroundColor: "rgba(96, 165, 250, 0.12)",
           yAxisID: "y",
           tension: 0.2
         },
         {
-          label: "Interest",
+          label: "관심도",
           data: interestSeries,
-          borderColor: "#b45309",
-          backgroundColor: "rgba(180, 83, 9, 0.14)",
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16, 185, 129, 0.14)",
           yAxisID: "y1",
           tension: 0.2
         }
@@ -80,12 +80,16 @@ function renderStockOverlayChart() {
       scales: {
         y: {
           position: "left",
-          title: { display: true, text: "Price" }
+          title: { display: true, text: "가격", color: "#94a3b8" },
+          ticks: { color: "#94a3b8" },
+          grid: { color: "rgba(148, 163, 184, 0.08)" }
         },
         y1: {
           position: "right",
           grid: { drawOnChartArea: false },
-          title: { display: true, text: "Interest" }
+          title: { display: true, text: "관심도", color: "#94a3b8" },
+          ticks: { color: "#94a3b8" },
+          grid: { color: "rgba(148, 163, 184, 0.06)" }
         }
       }
     }
@@ -119,10 +123,10 @@ function renderDashboardInterestTimeline() {
       labels: labels,
       datasets: [
         {
-          label: "Total Interest",
+          label: "전체 관심도",
           data: mentions,
-          borderColor: "#0f766e",
-          backgroundColor: "rgba(15, 118, 110, 0.14)",
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16, 185, 129, 0.14)",
           fill: true,
           tension: 0.25,
           pointRadius: 2
@@ -135,7 +139,9 @@ function renderDashboardInterestTimeline() {
       scales: {
         y: {
           beginAtZero: true,
-          title: { display: true, text: "Mentions" }
+          title: { display: true, text: "언급수", color: "#94a3b8" },
+          ticks: { color: "#94a3b8" },
+          grid: { color: "rgba(148, 163, 184, 0.08)" }
         }
       }
     }

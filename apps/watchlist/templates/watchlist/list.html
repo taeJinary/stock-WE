@@ -1,62 +1,61 @@
 {% extends "base.html" %}
 
-{% block title %}Watchlists{% endblock %}
+{% block title %}관심종목 — WEStock{% endblock %}
 
 {% block content %}
 <section class="panel">
   <div class="panel-head">
-    <h2>My Watchlists</h2>
+    <h2>내 관심종목</h2>
     {% if watchlist_limit %}
-      <p class="meta-note">Free plan: up to {{ watchlist_limit }} watchlists</p>
+    <p class="meta-note">Free 플랜: 최대 {{ watchlist_limit }}개</p>
     {% else %}
-      <p class="meta-note">Current plan: unlimited watchlists</p>
+    <p class="meta-note">현재 플랜: 무제한</p>
     {% endif %}
   </div>
 
   <form method="post" action="{% url 'watchlist:create' %}" class="watchlist-inline-form">
     {% csrf_token %}
     <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
-    <label for="watchlist-name">New Watchlist</label>
-    <input id="watchlist-name" type="text" name="name" maxlength="120" required placeholder="e.g. US Tech">
-    <button type="submit">Create</button>
+    <input id="watchlist-name" type="text" name="name" maxlength="120" required placeholder="새 워치리스트 이름 입력...">
+    <button type="submit">생성</button>
   </form>
 </section>
 
 {% for watchlist in watchlists %}
-  <section class="panel watchlist-block">
-    <div class="panel-head">
-      <h3>{{ watchlist.name }}{% if watchlist.is_default %} (default){% endif %}</h3>
-      <form method="post" action="{% url 'watchlist:delete' watchlist.id %}" class="inline-form">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
-        <button type="submit">Delete</button>
-      </form>
-    </div>
+<section class="panel watchlist-block">
+  <div class="panel-head">
+    <h3 style="font-weight: 600;">{{ watchlist.name }}{% if watchlist.is_default %} (기본){% endif %}</h3>
+    <form method="post" action="{% url 'watchlist:delete' watchlist.id %}" class="inline-form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
+      <button type="submit">삭제</button>
+    </form>
+  </div>
 
-    <ul>
-      {% for item in watchlist.items.all %}
-        <li class="watchlist-item-row">
-          <div>
-            <a href="{% url 'stocks:detail' item.stock.symbol %}">{{ item.stock.symbol }}</a>
-            {% if item.note %}
-              <span class="meta-note">- {{ item.note }}</span>
-            {% endif %}
-          </div>
-          <form method="post" action="{% url 'watchlist:remove-item' item.stock.symbol %}" class="inline-form">
-            {% csrf_token %}
-            <input type="hidden" name="watchlist_id" value="{{ watchlist.id }}">
-            <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
-            <button type="submit">Remove</button>
-          </form>
-        </li>
-      {% empty %}
-        <li>No items.</li>
-      {% endfor %}
-    </ul>
-  </section>
+  <ul style="list-style: none;">
+    {% for item in watchlist.items.all %}
+    <li class="watchlist-item-row">
+      <div>
+        <a href="{% url 'stocks:detail' item.stock.symbol %}">{{ item.stock.symbol }}</a>
+        {% if item.note %}
+        <span class="meta-note">— {{ item.note }}</span>
+        {% endif %}
+      </div>
+      <form method="post" action="{% url 'watchlist:remove-item' item.stock.symbol %}" class="inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="watchlist_id" value="{{ watchlist.id }}">
+        <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
+        <button type="submit">제거</button>
+      </form>
+    </li>
+    {% empty %}
+    <li class="empty-note">종목이 없습니다.</li>
+    {% endfor %}
+  </ul>
+</section>
 {% empty %}
-  <section class="panel">
-    <p>No watchlists yet.</p>
-  </section>
+<section class="panel">
+  <p class="empty-note">아직 관심종목 목록이 없습니다. 위에서 생성해보세요!</p>
+</section>
 {% endfor %}
 {% endblock %}
