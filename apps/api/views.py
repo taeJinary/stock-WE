@@ -2,7 +2,7 @@ from django.db.models import Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -42,7 +42,7 @@ def _parse_positive_int(field_name, value, *, default, minimum=1, maximum=365):
 
 
 class BaseProtectedApiView(APIView):
-    authentication_classes = (SessionAuthentication, BasicAuthentication)
+    authentication_classes = (SessionAuthentication,)
     permission_classes = (IsAuthenticated, HasApiPlanPermission)
     throttle_scope = "api_read"
 

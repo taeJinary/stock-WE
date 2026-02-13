@@ -1,3 +1,4 @@
+import base64
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
@@ -199,6 +200,18 @@ class ApiViewsTests(APITestCase):
 
     def test_market_summary_api_requires_authentication(self):
         response = self.client.get(reverse("api:market-summary"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "FORBIDDEN")
+
+    def test_market_summary_api_rejects_basic_auth_credentials(self):
+        credentials = base64.b64encode(b"api-pro:pass1234").decode("ascii")
+
+        response = self.client.get(
+            reverse("api:market-summary"),
+            HTTP_AUTHORIZATION=f"Basic {credentials}",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.data["status"], "error")
