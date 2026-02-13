@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
+COMPOSE_DEV_PATH = ROOT / "docker-compose.yml"
 COMPOSE_PROD_PATH = ROOT / "docker-compose.prod.yml"
 CADDYFILE_PATH = ROOT / "infra" / "caddy" / "Caddyfile"
 
@@ -55,7 +56,7 @@ def _contains(block_lines: list[str], text: str) -> bool:
     return any(text in line for line in block_lines)
 
 
-def validate_compose_text(compose_text: str) -> list[str]:
+def validate_production_compose_text(compose_text: str) -> list[str]:
     errors: list[str] = []
     blocks = extract_service_blocks(compose_text)
 
@@ -90,6 +91,40 @@ def validate_compose_text(compose_text: str) -> list[str]:
     return errors
 
 
+def validate_development_compose_text(compose_text: str) -> list[str]:
+    errors: list[str] = []
+    blocks = extract_service_blocks(compose_text)
+
+    required_services = {"web", "db", "redis"}
+    missing = sorted(required_services - set(blocks.keys()))
+    if missing:
+        errors.append(f"Missing services in docker-compose.yml: {', '.join(missing)}")
+        return errors
+
+    web_block = blocks["web"]
+    db_block = blocks["db"]
+    redis_block = blocks["redis"]
+
+    if not _has_key(web_block, "ports"):
+        errors.append("web service must expose a host port in development compose.")
+    if not _contains(web_block, "DJANGO_ENV: development"):
+        errors.append("web service must set DJANGO_ENV: development.")
+    if not _contains(web_block, 'DEBUG: "True"'):
+        errors.append('web service must set DEBUG: "True".')
+
+    if not _has_key(db_block, "ports"):
+        errors.append("db service must expose host port in development compose.")
+    if not _contains(db_block, "5432:5432"):
+        errors.append('db service must map "5432:5432" in development compose.')
+
+    if not _has_key(redis_block, "ports"):
+        errors.append("redis service must expose host port in development compose.")
+    if not _contains(redis_block, "6379:6379"):
+        errors.append('redis service must map "6379:6379" in development compose.')
+
+    return errors
+
+
 def validate_caddy_text(caddy_text: str) -> list[str]:
     errors: list[str] = []
     if "CADDY_SITE_ADDRESS" not in caddy_text:
@@ -99,6 +134,11 @@ def validate_caddy_text(caddy_text: str) -> list[str]:
     if "header_up X-Forwarded-Proto {scheme}" not in caddy_text:
         errors.append("Caddyfile must forward X-Forwarded-Proto header.")
     return errors
+
+
+def validate_compose_text(compose_text: str) -> list[str]:
+    # Backward compatible alias for tests and old imports.
+    return validate_production_compose_text(compose_text)
 
 
 def validate_production_files(
@@ -115,13 +155,22 @@ def validate_production_files(
     compose_text = compose_path.read_text(encoding="utf-8")
     caddy_text = caddy_path.read_text(encoding="utf-8")
 
-    errors.extend(validate_compose_text(compose_text))
+    errors.extend(validate_production_compose_text(compose_text))
     errors.extend(validate_caddy_text(caddy_text))
     return errors
 
 
+def validate_development_file(compose_path: Path = COMPOSE_DEV_PATH) -> list[str]:
+    if not compose_path.exists():
+        return [f"Missing file: {compose_path}"]
+    compose_text = compose_path.read_text(encoding="utf-8")
+    return validate_development_compose_text(compose_text)
+
+
 def main() -> int:
-    errors = validate_production_files()
+    errors = []
+    errors.extend(validate_development_file())
+    errors.extend(validate_production_files())
     if errors:
         print("[FAIL] production preflight checks failed")
         for error in errors:
