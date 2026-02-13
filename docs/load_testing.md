@@ -51,3 +51,28 @@ locust -f loadtest/locustfile.py --headless --users 30 --spawn-rate 5 --run-time
 - `loadtest/result_failures.csv`
 - `loadtest/result_exceptions.csv`
 
+## 6) Run baseline threshold check
+
+```powershell
+python scripts/run_loadtest_smoke.py --users 30 --spawn-rate 5 --run-time 2m --csv-prefix loadtest/result-smoke
+```
+
+기본 임계치:
+- 실패율(`failure_ratio`) ≤ `2%`
+- 평균 응답시간(`avg`) ≤ `800ms`
+- p95 응답시간(`p95`) ≤ `1500ms`
+
+임계치/실행값 환경변수:
+- `LOADTEST_USERS` (기본 `30`)
+- `LOADTEST_SPAWN_RATE` (기본 `5`)
+- `LOADTEST_RUN_TIME` (기본 `2m`)
+- `LOADTEST_MAX_FAILURE_RATIO` (기본 `0.02`)
+- `LOADTEST_MAX_AVG_MS` (기본 `800`)
+- `LOADTEST_MAX_P95_MS` (기본 `1500`)
+
+이미 생성된 CSV만 검증하려면:
+
+```powershell
+python scripts/run_loadtest_smoke.py --skip-locust --csv-prefix loadtest/result
+```
+
