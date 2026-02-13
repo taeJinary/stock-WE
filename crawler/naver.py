@@ -11,14 +11,14 @@ class NaverCrawler(BaseCrawler):
         except ModuleNotFoundError:
             return []
 
-        records = []
-        for stock in stocks:
+        def _fetch_for_stock(stock):
+            records = []
             html = self._safe_get_text(
                 self.endpoint,
                 params={"where": "news", "query": f"{stock.symbol} {stock.name}"},
             )
             if not html:
-                continue
+                return records
 
             soup = BeautifulSoup(html, "html.parser")
             links = soup.select("a.news_tit")
@@ -36,4 +36,9 @@ class NaverCrawler(BaseCrawler):
                         metadata={},
                     )
                 )
-        return records
+            return records
+
+        return self._fetch_in_parallel(
+            stocks=stocks,
+            fetch_per_stock=_fetch_for_stock,
+        )

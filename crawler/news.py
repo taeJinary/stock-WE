@@ -13,8 +13,8 @@ class NewsCrawler(BaseCrawler):
         except ModuleNotFoundError:
             return []
 
-        records = []
-        for stock in stocks:
+        def _fetch_for_stock(stock):
+            records = []
             xml_text = self._safe_get_text(
                 self.endpoint,
                 params={
@@ -25,7 +25,7 @@ class NewsCrawler(BaseCrawler):
                 },
             )
             if not xml_text:
-                continue
+                return records
 
             soup = BeautifulSoup(xml_text, "html.parser")
             items = soup.find_all("item")
@@ -59,4 +59,9 @@ class NewsCrawler(BaseCrawler):
                         },
                     )
                 )
-        return records
+            return records
+
+        return self._fetch_in_parallel(
+            stocks=stocks,
+            fetch_per_stock=_fetch_for_stock,
+        )
