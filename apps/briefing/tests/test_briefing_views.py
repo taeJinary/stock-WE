@@ -21,3 +21,17 @@ class BriefingViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["briefings"]), 3)
+
+    def test_briefing_list_limits_rows_to_30(self):
+        for idx in range(35):
+            DailyBriefing.objects.create(
+                briefing_date=timezone.localdate() - timedelta(days=idx),
+                title=f"Briefing {idx}",
+                summary="Summary",
+                discussed_symbols=["AAPL"],
+            )
+
+        response = self.client.get(reverse("briefing:list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["briefings"]), 30)
