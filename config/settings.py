@@ -126,6 +126,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "apps.api.apps.ApiConfig",
     "apps.accounts.apps.AccountsConfig",
     "apps.dashboard.apps.DashboardConfig",
     "apps.stocks.apps.StocksConfig",
