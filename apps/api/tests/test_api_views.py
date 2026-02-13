@@ -137,6 +137,8 @@ class ApiViewsTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "success")
+        self.assertIn("meta", response.data)
+        self.assertIn("pagination", response.data["meta"])
         self.assertEqual(len(response.data["data"]), 1)
         self.assertEqual(response.data["data"][0]["symbol"], "API1")
         self.assertEqual(response.data["data"][0]["total_mentions"], 12)
@@ -152,6 +154,8 @@ class ApiViewsTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "success")
+        self.assertIn("meta", response.data)
+        self.assertIn("pagination", response.data["meta"])
         symbols = [row["symbol"] for row in response.data["data"]]
         self.assertIn("API1", symbols)
 
@@ -177,17 +181,24 @@ class ApiViewsTests(APITestCase):
         response = self.client.get(reverse("api:top-interest"), {"limit": 0})
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "VALIDATION_ERROR")
+        self.assertIn("limit", response.data["errors"])
 
     def test_stock_summary_api_returns_404_for_unknown_symbol(self):
         self._auth_pro_user()
         response = self.client.get(reverse("api:stock-summary", kwargs={"symbol": "NOPE"}))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "NOT_FOUND")
 
     def test_market_summary_api_requires_authentication(self):
         response = self.client.get(reverse("api:market-summary"))
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "FORBIDDEN")
 
     def test_market_summary_api_denies_free_plan_user(self):
         self.client.force_authenticate(user=self.free_user)
@@ -195,3 +206,21 @@ class ApiViewsTests(APITestCase):
         response = self.client.get(reverse("api:market-summary"))
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "FORBIDDEN")
+
+    def test_top_interest_api_supports_pagination_params(self):
+        self._auth_pro_user()
+        response = self.client.get(
+            reverse("api:top-interest"),
+            {"limit": 2, "hours": 24, "page": 2, "page_size": 1},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        self.assertEqual(len(response.data["data"]), 1)
+        self.assertEqual(response.data["data"][0]["symbol"], "API2")
+        pagination = response.data["meta"]["pagination"]
+        self.assertEqual(pagination["page"], 2)
+        self.assertEqual(pagination["page_size"], 1)
+        self.assertEqual(pagination["total_items"], 2)

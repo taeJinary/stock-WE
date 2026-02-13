@@ -138,6 +138,10 @@ INSTALLED_APPS = [
 if _module_exists("django_celery_beat"):
     INSTALLED_APPS.append("django_celery_beat")
 
+REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "apps.api.exception_handlers.api_exception_handler",
+}
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
