@@ -2,7 +2,9 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from apps.stocks.models import NewsItem, Stock
@@ -88,3 +90,57 @@ class NewsServiceTests(TestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["title"], "Recent headline")
+
+    def test_get_latest_news_for_symbols_uses_bounded_queries_for_multiple_symbols(self):
+        second_stock = Stock.objects.create(
+            symbol="NEWS2",
+            name="News Two",
+            market=Stock.Market.USA,
+            sector="Media",
+            is_active=True,
+        )
+        third_stock = Stock.objects.create(
+            symbol="NEWS3",
+            name="News Three",
+            market=Stock.Market.KOREA,
+            sector="Media",
+            is_active=True,
+        )
+        now = timezone.now()
+
+        for idx in range(4):
+            NewsItem.objects.create(
+                stock=self.stock,
+                title=f"NEWS1-{idx}",
+                url=f"https://example.com/news1/{idx}",
+                publisher="P1",
+                published_at=now - timedelta(minutes=idx),
+            )
+            NewsItem.objects.create(
+                stock=second_stock,
+                title=f"NEWS2-{idx}",
+                url=f"https://example.com/news2/{idx}",
+                publisher="P2",
+                published_at=now - timedelta(minutes=idx),
+            )
+            NewsItem.objects.create(
+                stock=third_stock,
+                title=f"NEWS3-{idx}",
+                url=f"https://example.com/news3/{idx}",
+                publisher="P3",
+                published_at=now - timedelta(minutes=idx),
+            )
+
+        symbols = [self.stock.symbol, second_stock.symbol, third_stock.symbol]
+        with CaptureQueriesContext(connection) as queries:
+            rows = get_latest_news_for_symbols(symbols, limit_per_symbol=2, since_hours=24)
+
+        self.assertEqual(len(rows), 6)
+        self.assertLessEqual(len(queries), 2)
+        by_symbol = {}
+        for row in rows:
+            by_symbol.setdefault(row["symbol"], []).append(row["title"])
+
+        self.assertEqual(by_symbol[self.stock.symbol], ["NEWS1-0", "NEWS1-1"])
+        self.assertEqual(by_symbol[second_stock.symbol], ["NEWS2-0", "NEWS2-1"])
+        self.assertEqual(by_symbol[third_stock.symbol], ["NEWS3-0", "NEWS3-1"])
