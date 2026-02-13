@@ -65,6 +65,18 @@ def _env_secure_proxy_header(name: str = "SECURE_PROXY_SSL_HEADER") -> tuple[str
     return parts[0], parts[1]
 
 
+def _env_admin_url_path(name: str = "ADMIN_URL_PATH", default: str = "admin/") -> str:
+    raw = os.getenv(name, default)
+    if raw is None:
+        raw = default
+
+    normalized = raw.strip().strip("/")
+    if not normalized:
+        raise ImproperlyConfigured(f"{name} must include at least one path segment")
+
+    return f"{normalized}/"
+
+
 def _module_exists(module_name: str) -> bool:
     return find_spec(module_name) is not None
 
@@ -119,6 +131,11 @@ if not DEBUG and not ALLOWED_HOSTS:
     raise ImproperlyConfigured("ALLOWED_HOSTS must be set when DEBUG is False")
 
 CSRF_TRUSTED_ORIGINS = _env_list("CSRF_TRUSTED_ORIGINS", default=[])
+ADMIN_URL_PATH = _env_admin_url_path()
+if IS_PRODUCTION and ADMIN_URL_PATH == "admin/":
+    raise ImproperlyConfigured(
+        "ADMIN_URL_PATH must be changed from the default 'admin/' in production"
+    )
 
 
 INSTALLED_APPS = [

@@ -72,6 +72,7 @@ def main() -> int:
             "DJANGO_ENV": "production",
             "DEBUG": "False",
             "ALLOWED_HOSTS": base_env.get("ALLOWED_HOSTS", "stock-we.example.com"),
+            "ADMIN_URL_PATH": base_env.get("ADMIN_URL_PATH", "secure-admin/"),
             "CSRF_TRUSTED_ORIGINS": base_env.get(
                 "CSRF_TRUSTED_ORIGINS",
                 "https://stock-we.example.com",
