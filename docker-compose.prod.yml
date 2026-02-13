@@ -1,9 +1,19 @@
 services:
+  proxy:
+    image: caddy:2-alpine
+    depends_on:
+      - web
+    ports:
+      - "${PROXY_HTTP_PORT:-80}:80"
+      - "${PROXY_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
   web:
     build: .
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-4} --timeout ${GUNICORN_TIMEOUT:-30} --access-logfile - --error-logfile -
-    ports:
-      - "${WEB_PORT:-8080}:8000"
     depends_on:
       - db
       - redis
@@ -12,6 +22,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-westock}:${POSTGRES_PASSWORD:-westock}@db:5432/${POSTGRES_DB:-westock}
       REDIS_URL: redis://redis:6379/0
+      SECURE_PROXY_SSL_HEADER: ${SECURE_PROXY_SSL_HEADER:-HTTP_X_FORWARDED_PROTO,https}
 
   worker:
     build: .
@@ -51,3 +62,5 @@ services:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:
