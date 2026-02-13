@@ -2,7 +2,9 @@ from django.db.models import Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -15,6 +17,7 @@ from services.interest_service import (
 from services.news_service import get_related_news
 from services.stock_service import get_market_summary
 
+from .permissions import HasApiPlanPermission
 from .serializers import (
     InterestAnomalySerializer,
     MarketSummaryItemSerializer,
@@ -35,14 +38,19 @@ def _parse_positive_int(value, *, default, minimum=1, maximum=365):
     return parsed
 
 
-class MarketSummaryApiView(APIView):
+class BaseProtectedApiView(APIView):
+    authentication_classes = (SessionAuthentication, BasicAuthentication)
+    permission_classes = (IsAuthenticated, HasApiPlanPermission)
+
+
+class MarketSummaryApiView(BaseProtectedApiView):
     def get(self, request):
         rows = get_market_summary()
         serializer = MarketSummaryItemSerializer(rows, many=True)
         return Response({"status": "success", "data": serializer.data})
 
 
-class TopInterestApiView(APIView):
+class TopInterestApiView(BaseProtectedApiView):
     def get(self, request):
         limit = _parse_positive_int(request.query_params.get("limit"), default=10, maximum=100)
         hours = _parse_positive_int(request.query_params.get("hours"), default=24, maximum=720)
@@ -51,7 +59,7 @@ class TopInterestApiView(APIView):
         return Response({"status": "success", "data": serializer.data})
 
 
-class InterestAnomalyApiView(APIView):
+class InterestAnomalyApiView(BaseProtectedApiView):
     def get(self, request):
         limit = _parse_positive_int(request.query_params.get("limit"), default=8, maximum=100)
         recent_hours = _parse_positive_int(
@@ -73,7 +81,7 @@ class InterestAnomalyApiView(APIView):
         return Response({"status": "success", "data": serializer.data})
 
 
-class StockSummaryApiView(APIView):
+class StockSummaryApiView(BaseProtectedApiView):
     def get(self, request, symbol):
         stock = get_object_or_404(Stock, symbol=symbol.upper())
         price_days = _parse_positive_int(

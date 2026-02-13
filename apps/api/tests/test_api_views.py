@@ -1,17 +1,45 @@
 from datetime import timedelta
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.accounts.models import Subscription
 from apps.stocks.models import Interest, NewsItem, Price, Stock
 from services.stock_service import ensure_index_stocks
 
 
 class ApiViewsTests(APITestCase):
     def setUp(self):
+        User = get_user_model()
+        self.pro_user = User.objects.create_user(
+            username="api-pro",
+            email="api-pro@example.com",
+            password="pass1234",
+        )
+        Subscription.objects.create(
+            user=self.pro_user,
+            plan=Subscription.Plan.PRO,
+            is_active=True,
+            start_date=timezone.localdate() - timedelta(days=1),
+            end_date=timezone.localdate() + timedelta(days=30),
+        )
+        self.free_user = User.objects.create_user(
+            username="api-free",
+            email="api-free@example.com",
+            password="pass1234",
+        )
+        Subscription.objects.create(
+            user=self.free_user,
+            plan=Subscription.Plan.FREE,
+            is_active=True,
+            start_date=timezone.localdate() - timedelta(days=1),
+            end_date=timezone.localdate() + timedelta(days=30),
+        )
+
         self.stock = Stock.objects.create(
             symbol="API1",
             name="API One",
@@ -70,6 +98,9 @@ class ApiViewsTests(APITestCase):
             published_at=now,
         )
 
+    def _auth_pro_user(self):
+        self.client.force_authenticate(user=self.pro_user)
+
     def _seed_anomaly_history(self):
         now = timezone.now().replace(minute=0, second=0, microsecond=0)
         for hours_ago in range(6, 78):
@@ -88,6 +119,7 @@ class ApiViewsTests(APITestCase):
             )
 
     def test_market_summary_api_returns_success_shape(self):
+        self._auth_pro_user()
         ensure_index_stocks()
 
         response = self.client.get(reverse("api:market-summary"))
@@ -100,6 +132,7 @@ class ApiViewsTests(APITestCase):
         self.assertIn("change_rate", response.data["data"][0])
 
     def test_top_interest_api_returns_ranked_rows(self):
+        self._auth_pro_user()
         response = self.client.get(reverse("api:top-interest"), {"limit": 1, "hours": 24})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -109,6 +142,7 @@ class ApiViewsTests(APITestCase):
         self.assertEqual(response.data["data"][0]["total_mentions"], 12)
 
     def test_interest_anomaly_api_returns_detected_symbol(self):
+        self._auth_pro_user()
         self._seed_anomaly_history()
 
         response = self.client.get(
@@ -122,6 +156,7 @@ class ApiViewsTests(APITestCase):
         self.assertIn("API1", symbols)
 
     def test_stock_summary_api_returns_price_interest_and_news(self):
+        self._auth_pro_user()
         response = self.client.get(
             reverse("api:stock-summary", kwargs={"symbol": "api1"}),
             {"price_days": 30, "interest_days": 60, "news_limit": 5},
@@ -138,11 +173,25 @@ class ApiViewsTests(APITestCase):
         self.assertGreaterEqual(len(payload["news_items"]), 1)
 
     def test_top_interest_api_returns_400_for_invalid_limit(self):
+        self._auth_pro_user()
         response = self.client.get(reverse("api:top-interest"), {"limit": 0})
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_stock_summary_api_returns_404_for_unknown_symbol(self):
+        self._auth_pro_user()
         response = self.client.get(reverse("api:stock-summary", kwargs={"symbol": "NOPE"}))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_market_summary_api_requires_authentication(self):
+        response = self.client.get(reverse("api:market-summary"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_market_summary_api_denies_free_plan_user(self):
+        self.client.force_authenticate(user=self.free_user)
+
+        response = self.client.get(reverse("api:market-summary"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
