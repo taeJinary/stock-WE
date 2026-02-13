@@ -12,6 +12,8 @@ services:
     env_file:
       - .env
     environment:
+      DJANGO_ENV: development
+      DEBUG: "True"
       DATABASE_URL: postgresql://westock:westock@db:5432/westock
       REDIS_URL: redis://redis:6379/0
 
@@ -26,6 +28,8 @@ services:
     env_file:
       - .env
     environment:
+      DJANGO_ENV: development
+      DEBUG: "True"
       DATABASE_URL: postgresql://westock:westock@db:5432/westock
       REDIS_URL: redis://redis:6379/0
 
@@ -40,6 +44,8 @@ services:
     env_file:
       - .env
     environment:
+      DJANGO_ENV: development
+      DEBUG: "True"
       DATABASE_URL: postgresql://westock:westock@db:5432/westock
       REDIS_URL: redis://redis:6379/0
 
