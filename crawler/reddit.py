@@ -8,8 +8,8 @@ class RedditCrawler(BaseCrawler):
     endpoint = "https://www.reddit.com/search.json"
 
     def fetch(self, stocks, limit_per_symbol=3):
-        records = []
-        for stock in stocks:
+        def _fetch_for_stock(stock):
+            records = []
             payload = self._safe_get_json(
                 self.endpoint,
                 params={
@@ -19,7 +19,7 @@ class RedditCrawler(BaseCrawler):
                 },
             )
             if not payload:
-                continue
+                return records
 
             children = payload.get("data", {}).get("children", [])
             for item in children[:limit_per_symbol]:
@@ -38,4 +38,9 @@ class RedditCrawler(BaseCrawler):
                         metadata={"subreddit": data.get("subreddit", "")},
                     )
                 )
-        return records
+            return records
+
+        return self._fetch_in_parallel(
+            stocks=stocks,
+            fetch_per_stock=_fetch_for_stock,
+        )
