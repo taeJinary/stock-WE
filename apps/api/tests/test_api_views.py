@@ -207,6 +207,84 @@ class ApiViewsTests(APITestCase):
         self.assertEqual(response.data["status"], "error")
         self.assertEqual(response.data["code"], "FORBIDDEN")
 
+    def test_auth_token_issue_returns_rotated_token_for_pro_user(self):
+        previous_key = self.pro_token.key
+
+        response = self.client.post(
+            reverse("api:auth-token-issue"),
+            {"username": "api-pro", "password": "pass1234"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], "success")
+        self.assertEqual(response.data["data"]["token_type"], "Token")
+        self.assertEqual(response.data["data"]["username"], "api-pro")
+        self.assertNotEqual(response.data["data"]["token"], previous_key)
+        self.assertEqual(Token.objects.filter(user=self.pro_user).count(), 1)
+
+    def test_auth_token_issue_denies_free_plan_user(self):
+        response = self.client.post(
+            reverse("api:auth-token-issue"),
+            {"username": "api-free", "password": "pass1234"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "FORBIDDEN")
+
+    def test_auth_token_issue_rejects_invalid_credentials(self):
+        response = self.client.post(
+            reverse("api:auth-token-issue"),
+            {"username": "api-pro", "password": "wrong-password"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "UNAUTHORIZED")
+
+    def test_auth_token_issue_validates_required_fields(self):
+        response = self.client.post(reverse("api:auth-token-issue"), {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "VALIDATION_ERROR")
+        self.assertIn("username", response.data["errors"])
+        self.assertIn("password", response.data["errors"])
+
+    def test_auth_token_rotate_returns_new_token_for_authenticated_pro_user(self):
+        previous_key = self.pro_token.key
+        response = self.client.post(
+            reverse("api:auth-token-rotate"),
+            HTTP_AUTHORIZATION=f"Token {self.pro_token.key}",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], "success")
+        self.assertEqual(response.data["data"]["token_type"], "Token")
+        self.assertNotEqual(response.data["data"]["token"], previous_key)
+        self.assertEqual(Token.objects.filter(user=self.pro_user).count(), 1)
+
+    def test_auth_token_rotate_requires_authentication(self):
+        response = self.client.post(reverse("api:auth-token-rotate"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "FORBIDDEN")
+
+    def test_auth_token_rotate_denies_free_plan_user(self):
+        free_token = Token.objects.create(user=self.free_user)
+        response = self.client.post(
+            reverse("api:auth-token-rotate"),
+            HTTP_AUTHORIZATION=f"Token {free_token.key}",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "FORBIDDEN")
+
     def test_market_summary_api_allows_token_authentication(self):
         response = self.client.get(
             reverse("api:market-summary"),

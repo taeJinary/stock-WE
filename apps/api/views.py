@@ -1,12 +1,15 @@
+from django.contrib.auth import authenticate
 from django.db.models import Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
-from rest_framework.exceptions import ValidationError
+from rest_framework.authtoken.models import Token
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.accounts.models import Subscription
 from apps.stocks.models import Stock
 from services.interest_service import (
     detect_interest_anomalies,
@@ -15,6 +18,7 @@ from services.interest_service import (
 )
 from services.news_service import get_related_news
 from services.stock_service import get_market_summary
+from services.watchlist_service import get_user_plan
 
 from .pagination import ApiPageNumberPagination
 from .permissions import HasApiPlanPermission
@@ -41,10 +45,75 @@ def _parse_positive_int(field_name, value, *, default, minimum=1, maximum=365):
     return parsed
 
 
+class InvalidCredentialsException(APIException):
+    status_code = 401
+    default_detail = "Invalid username or password."
+    default_code = "authentication_failed"
+
+
+def _require_api_plan_access(user):
+    if user.is_superuser or user.is_staff:
+        return
+    plan = get_user_plan(user)
+    if plan not in {Subscription.Plan.PRO, Subscription.Plan.ENTERPRISE}:
+        raise PermissionDenied(HasApiPlanPermission.message)
+
+
+class ApiTokenIssueView(APIView):
+    authentication_classes = ()
+    permission_classes = ()
+    throttle_scope = "auth_token"
+
+    def post(self, request):
+        username = str(request.data.get("username", "")).strip()
+        password = str(request.data.get("password", ""))
+
+        errors = {}
+        if not username:
+            errors["username"] = ["This field is required."]
+        if not password:
+            errors["password"] = ["This field is required."]
+        if errors:
+            raise ValidationError(errors)
+
+        user = authenticate(request=request, username=username, password=password)
+        if user is None or not user.is_active:
+            raise InvalidCredentialsException()
+
+        _require_api_plan_access(user)
+
+        Token.objects.filter(user=user).delete()
+        token = Token.objects.create(user=user)
+        return success_response(
+            {
+                "token": token.key,
+                "token_type": "Token",
+                "username": user.username,
+            },
+            status_code=201,
+        )
+
+
 class BaseProtectedApiView(APIView):
     authentication_classes = (SessionAuthentication, TokenAuthentication)
     permission_classes = (IsAuthenticated, HasApiPlanPermission)
     throttle_scope = "api_read"
+
+
+class ApiTokenRotateView(BaseProtectedApiView):
+    throttle_scope = "auth_token"
+
+    def post(self, request):
+        Token.objects.filter(user=request.user).delete()
+        token = Token.objects.create(user=request.user)
+        return success_response(
+            {
+                "token": token.key,
+                "token_type": "Token",
+                "username": request.user.username,
+            },
+            status_code=201,
+        )
 
 
 class MarketSummaryApiView(BaseProtectedApiView):
