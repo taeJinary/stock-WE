@@ -44,6 +44,7 @@ def _parse_positive_int(field_name, value, *, default, minimum=1, maximum=365):
 class BaseProtectedApiView(APIView):
     authentication_classes = (SessionAuthentication, BasicAuthentication)
     permission_classes = (IsAuthenticated, HasApiPlanPermission)
+    throttle_scope = "api_read"
 
 
 class MarketSummaryApiView(BaseProtectedApiView):

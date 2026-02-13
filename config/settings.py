@@ -142,6 +142,12 @@ if _module_exists("django_celery_beat"):
 
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.api.exception_handlers.api_exception_handler",
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "api_read": os.getenv("API_THROTTLE_RATE", "120/min"),
+    },
 }
 
 MIDDLEWARE = [

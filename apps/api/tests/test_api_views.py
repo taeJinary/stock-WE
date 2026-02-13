@@ -1,11 +1,14 @@
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+from rest_framework.throttling import ScopedRateThrottle
 
 from apps.accounts.models import Subscription
 from apps.stocks.models import Interest, NewsItem, Price, Stock
@@ -14,6 +17,7 @@ from services.stock_service import ensure_index_stocks
 
 class ApiViewsTests(APITestCase):
     def setUp(self):
+        cache.clear()
         User = get_user_model()
         self.pro_user = User.objects.create_user(
             username="api-pro",
@@ -208,6 +212,21 @@ class ApiViewsTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.data["status"], "error")
         self.assertEqual(response.data["code"], "FORBIDDEN")
+
+    def test_market_summary_api_returns_429_when_throttle_exceeded(self):
+        self._auth_pro_user()
+        url = reverse("api:market-summary")
+
+        with patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"api_read": "2/min"}):
+            first = self.client.get(url)
+            second = self.client.get(url)
+            third = self.client.get(url)
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(third.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(third.data["status"], "error")
+        self.assertEqual(third.data["code"], "RATE_LIMITED")
 
     def test_top_interest_api_supports_pagination_params(self):
         self._auth_pro_user()
