@@ -101,7 +101,7 @@ _load_dotenv(BASE_DIR / ".env")
 
 DJANGO_ENV = os.getenv("DJANGO_ENV", "development").strip().lower()
 IS_PRODUCTION = DJANGO_ENV in {"production", "prod"}
-IS_TESTING = "test" in sys.argv
+IS_TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
 
 DEBUG = _env_bool("DEBUG", default=not IS_PRODUCTION)
 if IS_PRODUCTION and DEBUG:

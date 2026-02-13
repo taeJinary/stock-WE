@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BANDIT_TARGETS = [
+    "apps/api",
     "apps/accounts",
     "apps/briefing",
     "apps/dashboard",
@@ -16,6 +17,8 @@ BANDIT_TARGETS = [
     "services",
 ]
 BANDIT_EXCLUDES = [
+    "apps/api/migrations",
+    "apps/api/tests",
     "apps/accounts/migrations",
     "apps/accounts/tests",
     "apps/briefing/migrations",
