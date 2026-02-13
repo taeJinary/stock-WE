@@ -1,0 +1,148 @@
+from datetime import timedelta
+from decimal import Decimal
+
+from django.urls import reverse
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.test import APITestCase
+
+from apps.stocks.models import Interest, NewsItem, Price, Stock
+from services.stock_service import ensure_index_stocks
+
+
+class ApiViewsTests(APITestCase):
+    def setUp(self):
+        self.stock = Stock.objects.create(
+            symbol="API1",
+            name="API One",
+            market=Stock.Market.USA,
+            sector="Tech",
+            is_active=True,
+        )
+        self.other = Stock.objects.create(
+            symbol="API2",
+            name="API Two",
+            market=Stock.Market.KOREA,
+            sector="Finance",
+            is_active=True,
+        )
+
+        today = timezone.localdate()
+        Price.objects.create(
+            stock=self.stock,
+            traded_at=today - timedelta(days=1),
+            open_price=Decimal("95"),
+            high_price=Decimal("100"),
+            low_price=Decimal("93"),
+            close_price=Decimal("99"),
+            volume=1200,
+        )
+        Price.objects.create(
+            stock=self.stock,
+            traded_at=today,
+            open_price=Decimal("100"),
+            high_price=Decimal("106"),
+            low_price=Decimal("98"),
+            close_price=Decimal("103"),
+            volume=1500,
+        )
+
+        now = timezone.now()
+        Interest.objects.create(
+            stock=self.stock,
+            source=Interest.Source.REDDIT,
+            recorded_at=now - timedelta(hours=2),
+            mentions=12,
+            metadata={"samples": [{"title": "API1 momentum"}]},
+        )
+        Interest.objects.create(
+            stock=self.other,
+            source=Interest.Source.REDDIT,
+            recorded_at=now - timedelta(hours=2),
+            mentions=3,
+            metadata={"samples": [{"title": "API2 mention"}]},
+        )
+        NewsItem.objects.create(
+            stock=self.stock,
+            title="API One launches product",
+            url="https://example.com/api1-news",
+            publisher="Example",
+            published_at=now,
+        )
+
+    def _seed_anomaly_history(self):
+        now = timezone.now().replace(minute=0, second=0, microsecond=0)
+        for hours_ago in range(6, 78):
+            Interest.objects.create(
+                stock=self.stock,
+                source=Interest.Source.REDDIT,
+                recorded_at=now - timedelta(hours=hours_ago),
+                mentions=1,
+            )
+        for hours_ago in range(0, 6):
+            Interest.objects.create(
+                stock=self.stock,
+                source=Interest.Source.REDDIT,
+                recorded_at=now - timedelta(hours=hours_ago),
+                mentions=12,
+            )
+
+    def test_market_summary_api_returns_success_shape(self):
+        ensure_index_stocks()
+
+        response = self.client.get(reverse("api:market-summary"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        self.assertEqual(len(response.data["data"]), 4)
+        self.assertIn("label", response.data["data"][0])
+        self.assertIn("price", response.data["data"][0])
+        self.assertIn("change_rate", response.data["data"][0])
+
+    def test_top_interest_api_returns_ranked_rows(self):
+        response = self.client.get(reverse("api:top-interest"), {"limit": 1, "hours": 24})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        self.assertEqual(len(response.data["data"]), 1)
+        self.assertEqual(response.data["data"][0]["symbol"], "API1")
+        self.assertEqual(response.data["data"][0]["total_mentions"], 12)
+
+    def test_interest_anomaly_api_returns_detected_symbol(self):
+        self._seed_anomaly_history()
+
+        response = self.client.get(
+            reverse("api:interest-anomalies"),
+            {"limit": 5, "recent_hours": 6, "baseline_hours": 72},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        symbols = [row["symbol"] for row in response.data["data"]]
+        self.assertIn("API1", symbols)
+
+    def test_stock_summary_api_returns_price_interest_and_news(self):
+        response = self.client.get(
+            reverse("api:stock-summary", kwargs={"symbol": "api1"}),
+            {"price_days": 30, "interest_days": 60, "news_limit": 5},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        payload = response.data["data"]
+        self.assertEqual(payload["stock"]["symbol"], "API1")
+        self.assertIsNotNone(payload["latest_price"])
+        self.assertEqual(payload["latest_price"]["close_price"], 103.0)
+        self.assertGreaterEqual(len(payload["price_chart_data"]), 2)
+        self.assertGreaterEqual(len(payload["interest_chart_data"]), 1)
+        self.assertGreaterEqual(len(payload["news_items"]), 1)
+
+    def test_top_interest_api_returns_400_for_invalid_limit(self):
+        response = self.client.get(reverse("api:top-interest"), {"limit": 0})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_stock_summary_api_returns_404_for_unknown_symbol(self):
+        response = self.client.get(reverse("api:stock-summary", kwargs={"symbol": "NOPE"}))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
