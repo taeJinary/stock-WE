@@ -28,3 +28,6 @@ staticfiles/
 
 # Local task log
 Task.md
+
+# Load test artifacts
+loadtest/result*
