@@ -110,6 +110,11 @@ def main() -> int:
             ],
             test_env,
         )
+        _run_step(
+            "Production preflight checks",
+            [python, "scripts/verify_production_setup.py"],
+            test_env,
+        )
     except subprocess.CalledProcessError as exc:
         print(f"\n[FAIL] verification failed at exit code {exc.returncode}")
         return exc.returncode

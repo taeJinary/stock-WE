@@ -8,6 +8,10 @@ release 전 아래 루틴을 실행합니다.
 python scripts/verify_release.py
 ```
 
+포함 검증:
+- Django tests / deploy check / bandit
+- 프로덕션 compose preflight (`docker-compose.prod.yml`, `infra/caddy/Caddyfile` 보안 가드)
+
 PowerShell wrapper:
 
 ```powershell
