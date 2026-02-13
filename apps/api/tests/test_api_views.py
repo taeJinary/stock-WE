@@ -1,3 +1,4 @@
+import base64
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
@@ -7,6 +8,7 @@ from django.core.cache import cache
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from rest_framework.throttling import ScopedRateThrottle
 
@@ -31,6 +33,7 @@ class ApiViewsTests(APITestCase):
             start_date=timezone.localdate() - timedelta(days=1),
             end_date=timezone.localdate() + timedelta(days=30),
         )
+        self.pro_token = Token.objects.create(user=self.pro_user)
         self.free_user = User.objects.create_user(
             username="api-free",
             email="api-free@example.com",
@@ -199,6 +202,26 @@ class ApiViewsTests(APITestCase):
 
     def test_market_summary_api_requires_authentication(self):
         response = self.client.get(reverse("api:market-summary"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["status"], "error")
+        self.assertEqual(response.data["code"], "FORBIDDEN")
+
+    def test_market_summary_api_allows_token_authentication(self):
+        response = self.client.get(
+            reverse("api:market-summary"),
+            HTTP_AUTHORIZATION=f"Token {self.pro_token.key}",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+
+    def test_market_summary_api_rejects_basic_auth_credentials(self):
+        credentials = base64.b64encode(b"api-pro:pass1234").decode("ascii")
+        response = self.client.get(
+            reverse("api:market-summary"),
+            HTTP_AUTHORIZATION=f"Basic {credentials}",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.data["status"], "error")
