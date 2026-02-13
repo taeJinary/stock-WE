@@ -1,110 +1,123 @@
 {% extends "base.html" %}
 
-{% block title %}{{ stock.symbol }}{% endblock %}
+{% block title %}{{ stock.symbol }} — WEStock{% endblock %}
 
 {% block content %}
 <section class="panel">
-  <h2>{{ stock.symbol }} - {{ stock.name }}</h2>
-  <p><strong>Market:</strong> {{ stock.get_market_display }}</p>
-  <p><strong>Sector:</strong> {{ stock.sector|default:"-" }}</p>
+  <div class="panel-head">
+    <h2>{{ stock.symbol }} — {{ stock.name }}</h2>
+  </div>
+  <p><strong>시장:</strong> {{ stock.get_market_display }}</p>
+  <p><strong>섹터:</strong> {{ stock.sector|default:"—" }}</p>
 </section>
 
 <section class="panel">
-  <h3>Anomaly Alert</h3>
+  <div class="panel-head">
+    <h2>이상 징후</h2>
+  </div>
   {% if stock_anomaly %}
-    <div class="anomaly-summary">
-      <p class="anomaly-main">
-        Recent interest is
-        <strong>{{ stock_anomaly.surge_ratio }}x</strong>
-        above baseline.
-      </p>
-      <p class="meta-note">
-        recent={{ stock_anomaly.recent_mentions }},
-        expected={{ stock_anomaly.expected_mentions }},
-        z-score={{ stock_anomaly.z_score }}
-      </p>
-      <p>
-        <span class="severity-badge severity-{{ stock_anomaly.severity }}">
-          {{ stock_anomaly.severity|upper }}
-        </span>
-      </p>
-    </div>
+  <div class="anomaly-summary">
+    <p class="anomaly-main">
+      최근 관심도가 기준 대비
+      <strong>{{ stock_anomaly.surge_ratio }}배</strong>
+      상승했습니다.
+    </p>
+    <p class="meta-note">
+      최근={{ stock_anomaly.recent_mentions }}건,
+      예상={{ stock_anomaly.expected_mentions }}건,
+      z-score={{ stock_anomaly.z_score }}
+    </p>
+    <p>
+      <span class="severity-badge severity-{{ stock_anomaly.severity }}">
+        {{ stock_anomaly.severity|upper }}
+      </span>
+    </p>
+  </div>
   {% else %}
-    <p class="empty-note">No abnormal interest surge detected.</p>
+  <p class="empty-note">현재 이상 징후가 감지되지 않았습니다.</p>
   {% endif %}
 </section>
 
 {% if request.user.is_authenticated %}
 <section class="panel">
-  <h3>Watchlists</h3>
+  <div class="panel-head">
+    <h2>관심종목</h2>
+  </div>
   {% if watchlists %}
-    <form method="post" action="{% url 'watchlist:add-item' stock.symbol %}" class="watchlist-inline-form">
-      {% csrf_token %}
-      <input type="hidden" name="next" value="{{ request.get_full_path }}">
-      <label for="watchlist-select">Watchlist</label>
-      <select id="watchlist-select" name="watchlist_id">
-        {% for watchlist in watchlists %}
-          <option value="{{ watchlist.id }}">{{ watchlist.name }}{% if watchlist.is_default %} (default){% endif %}</option>
-        {% endfor %}
-      </select>
-      <input type="text" name="note" maxlength="255" placeholder="Optional note">
-      <button type="submit">Add to Watchlist</button>
-    </form>
-
-    <ul class="watchlist-chip-list">
+  <form method="post" action="{% url 'watchlist:add-item' stock.symbol %}" class="watchlist-inline-form">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <label for="watchlist-select">워치리스트</label>
+    <select id="watchlist-select" name="watchlist_id">
       {% for watchlist in watchlists %}
-        {% if watchlist.id in watchlist_ids_with_stock %}
-          <li>
-            <span>{{ watchlist.name }}</span>
-            <form method="post" action="{% url 'watchlist:remove-item' stock.symbol %}" class="inline-form">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{{ request.get_full_path }}">
-              <input type="hidden" name="watchlist_id" value="{{ watchlist.id }}">
-              <button type="submit">Remove</button>
-            </form>
-          </li>
-        {% endif %}
+      <option value="{{ watchlist.id }}">{{ watchlist.name }}{% if watchlist.is_default %} (기본){% endif %}</option>
       {% endfor %}
-    </ul>
+    </select>
+    <input type="text" name="note" maxlength="255" placeholder="메모 (선택사항)">
+    <button type="submit">추가</button>
+  </form>
+
+  <ul class="watchlist-chip-list">
+    {% for watchlist in watchlists %}
+    {% if watchlist.id in watchlist_ids_with_stock %}
+    <li>
+      <span>{{ watchlist.name }}</span>
+      <form method="post" action="{% url 'watchlist:remove-item' stock.symbol %}" class="inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="watchlist_id" value="{{ watchlist.id }}">
+        <button type="submit">제거</button>
+      </form>
+    </li>
+    {% endif %}
+    {% endfor %}
+  </ul>
   {% else %}
-    <p class="empty-note">No watchlists yet. Create one from the Watchlists page.</p>
+  <p class="empty-note">관심종목 목록이 없습니다. <a href="{% url 'watchlist:list' %}">관심종목 페이지</a>에서 생성하세요.</p>
   {% endif %}
 
   {% if watchlist_limit %}
-    <p class="meta-note">Free plan limit: up to {{ watchlist_limit }} watchlists.</p>
+  <p class="meta-note">Free 플랜: 최대 {{ watchlist_limit }}개 워치리스트</p>
   {% else %}
-    <p class="meta-note">Current plan: unlimited watchlists.</p>
+  <p class="meta-note">현재 플랜: 무제한 워치리스트</p>
   {% endif %}
 </section>
 {% else %}
 <section class="panel">
-  <h3>Watchlists</h3>
-  <p><a href="{% url 'accounts:login' %}">Login</a> to add this stock to your watchlists.</p>
+  <div class="panel-head">
+    <h2>관심종목</h2>
+  </div>
+  <p class="empty-note"><a href="{% url 'accounts:login' %}">로그인</a>하여 이 종목을 관심종목에 추가하세요.</p>
 </section>
 {% endif %}
 
 <section class="panel">
-  <h3>Price and Interest Trend</h3>
+  <div class="panel-head">
+    <h2>가격 · 관심도 추이</h2>
+  </div>
   <canvas id="stock-overlay-chart" height="120"></canvas>
   {{ price_chart_data|json_script:"price-chart-data" }}
   {{ interest_chart_data|json_script:"interest-chart-data" }}
 </section>
 
 <section class="panel">
-  <h3>Recent Prices</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Open</th>
-        <th>High</th>
-        <th>Low</th>
-        <th>Close</th>
-        <th>Volume</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in prices %}
+  <div class="panel-head">
+    <h2>최근 가격</h2>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>일자</th>
+          <th>시가</th>
+          <th>고가</th>
+          <th>저가</th>
+          <th>종가</th>
+          <th>거래량</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in prices %}
         <tr>
           <td>{{ row.traded_at }}</td>
           <td>{{ row.open_price }}</td>
@@ -113,71 +126,81 @@
           <td>{{ row.close_price }}</td>
           <td>{{ row.volume }}</td>
         </tr>
-      {% empty %}
-        <tr><td colspan="6">No price data.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="empty-note">가격 데이터가 없습니다.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="panel">
-  <h3>Recent Interest</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Time</th>
-        <th>Source</th>
-        <th>Mentions</th>
-        <th>Sentiment</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in interest_records %}
+  <div class="panel-head">
+    <h2>최근 관심도</h2>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>시간</th>
+          <th>소스</th>
+          <th>언급수</th>
+          <th>감성</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in interest_records %}
         <tr>
           <td>{{ row.recorded_at }}</td>
           <td>{{ row.get_source_display }}</td>
           <td>{{ row.mentions }}</td>
-          <td>{{ row.sentiment_score|default:"-" }}</td>
+          <td>{{ row.sentiment_score|default:"—" }}</td>
         </tr>
-      {% empty %}
-        <tr><td colspan="4">No interest data.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="empty-note">관심도 데이터가 없습니다.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="panel">
-  <h3>Related News</h3>
-  <ul>
+  <div class="panel-head">
+    <h2>관련 뉴스</h2>
+  </div>
+  <ul style="list-style: none;">
     {% for item in news_items %}
-      <li>
-        <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>
-        {% if item.publisher %}
-          <span class="meta-note">({{ item.publisher }})</span>
-        {% endif %}
-      </li>
+    <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+      <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>
+      {% if item.publisher %}
+      <span class="meta-note"> — {{ item.publisher }}</span>
+      {% endif %}
+    </li>
     {% empty %}
-      <li>No news data.</li>
+    <li class="empty-note">뉴스 데이터가 없습니다.</li>
     {% endfor %}
   </ul>
 </section>
 
 <section class="panel">
-  <h3>Topic Keyword Cloud</h3>
+  <div class="panel-head">
+    <h2>키워드 클라우드</h2>
+  </div>
   {% if topic_cloud %}
-    <div class="topic-cloud">
-      {% for item in topic_cloud %}
-        <span
-          class="topic-chip"
-          style="--topic-weight: {{ item.weight }}; font-size: {{ item.font_size }}rem;"
-          title="{{ item.count }} occurrences"
-        >
-          {{ item.keyword }}
-        </span>
-      {% endfor %}
-    </div>
+  <div class="topic-cloud">
+    {% for item in topic_cloud %}
+    <span class="topic-chip" style="--topic-weight: {{ item.weight }}; font-size: {{ item.font_size }}rem;"
+      title="{{ item.count }}회 언급">
+      {{ item.keyword }}
+    </span>
+    {% endfor %}
+  </div>
   {% else %}
-    <p class="empty-note">No keyword data yet.</p>
+  <p class="empty-note">키워드 데이터가 아직 없습니다.</p>
   {% endif %}
 </section>
 {% endblock %}

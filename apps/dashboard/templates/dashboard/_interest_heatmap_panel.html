@@ -1,27 +1,22 @@
 <section class="panel" id="interest-heatmap-panel">
   <div class="panel-head">
-    <h2>Interest Heatmap (by Sector)</h2>
-    <button
-      type="button"
-      class="btn-refresh"
-      hx-get="{% url 'dashboard:interest-heatmap-partial' %}"
-      hx-target="#interest-heatmap-panel"
-      hx-swap="outerHTML"
-    >
-      Refresh
+    <h2>관심도 히트맵 (섹터별)</h2>
+    <button type="button" class="btn-refresh" hx-get="{% url 'dashboard:interest-heatmap-partial' %}"
+      hx-target="#interest-heatmap-panel" hx-swap="outerHTML">
+      새로고침
     </button>
   </div>
 
   {% if has_heatmap_data %}
-    <div class="heatmap-grid">
-      {% for item in sector_heatmap %}
-        <article class="heatmap-card" style="--intensity: {{ item.intensity }};">
-          <h3>{{ item.sector }}</h3>
-          <p>{{ item.mentions }} mentions</p>
-        </article>
-      {% endfor %}
-    </div>
+  <div class="heatmap-grid">
+    {% for item in sector_heatmap %}
+    <article class="heatmap-card" style="--intensity: {{ item.intensity }};">
+      <h3>{{ item.sector }}</h3>
+      <p>{{ item.mentions }}건 언급</p>
+    </article>
+    {% endfor %}
+  </div>
   {% else %}
-    <p class="empty-note">No sector interest data yet.</p>
+  <p class="empty-note">섹터별 관심도 데이터가 아직 없습니다.</p>
   {% endif %}
 </section>
