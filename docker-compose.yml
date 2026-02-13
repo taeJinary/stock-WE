@@ -17,7 +17,7 @@ services:
 
   worker:
     build: .
-    command: celery -A config worker -l info
+    command: celery -A config worker -l info --concurrency ${CELERY_WORKER_CONCURRENCY:-2}
     volumes:
       - .:/app
     depends_on:
