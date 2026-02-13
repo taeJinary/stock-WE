@@ -48,6 +48,9 @@ services:
         self.assertIn("db service must not expose host ports in production compose.", errors)
         self.assertIn("redis service must not expose host ports in production compose.", errors)
         self.assertIn("web service must define SECURE_PROXY_SSL_HEADER.", errors)
+        self.assertIn("web service must set DJANGO_ENV: production.", errors)
+        self.assertIn('web service must set DEBUG: "False".', errors)
+        self.assertIn("web service command must include collectstatic before gunicorn.", errors)
 
     def test_validate_caddy_text_detects_missing_required_directives(self):
         caddy_text = """

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}회원가입{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h2>회원가입</h2>
+  <form method="post">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="message error">
+        {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <p>
+      <label for="{{ form.username.id_for_label }}">아이디</label><br>
+      {{ form.username }}
+      {% if form.username.errors %}
+        <small class="down">{{ form.username.errors|join:", " }}</small>
+      {% endif %}
+    </p>
+
+    <p>
+      <label for="{{ form.email.id_for_label }}">이메일</label><br>
+      {{ form.email }}
+      {% if form.email.errors %}
+        <small class="down">{{ form.email.errors|join:", " }}</small>
+      {% endif %}
+    </p>
+
+    <p>
+      <label for="{{ form.password1.id_for_label }}">비밀번호</label><br>
+      {{ form.password1 }}
+      {% if form.password1.errors %}
+        <small class="down">{{ form.password1.errors|join:", " }}</small>
+      {% endif %}
+    </p>
+
+    <p>
+      <label for="{{ form.password2.id_for_label }}">비밀번호 확인</label><br>
+      {{ form.password2 }}
+      {% if form.password2.errors %}
+        <small class="down">{{ form.password2.errors|join:", " }}</small>
+      {% endif %}
+    </p>
+
+    <button type="submit">가입하기</button>
+  </form>
+  <p><a href="{% url 'accounts:login' %}">이미 계정이 있으신가요? 로그인</a></p>
+</section>
+{% endblock %}
