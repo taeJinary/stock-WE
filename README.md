@@ -13,3 +13,16 @@ PowerShell wrapper:
 ```powershell
 .\scripts\verify_release.ps1
 ```
+
+## Production Compose
+
+프로덕션 실행은 `docker-compose.prod.yml`을 사용합니다.
+
+```powershell
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+보안 정책:
+- `db`, `redis`는 `ports`를 열지 않아 Docker 내부 네트워크에서만 접근합니다.
+- 외부 노출은 `web` 포트(`WEB_PORT`)만 허용합니다.
+- `DATABASE_URL`은 `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`로 조합되어 Postgres로 강제됩니다.

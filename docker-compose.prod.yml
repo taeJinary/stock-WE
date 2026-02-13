@@ -1,0 +1,53 @@
+services:
+  web:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-4} --timeout ${GUNICORN_TIMEOUT:-30} --access-logfile - --error-logfile -
+    ports:
+      - "${WEB_PORT:-8080}:8000"
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-westock}:${POSTGRES_PASSWORD:-westock}@db:5432/${POSTGRES_DB:-westock}
+      REDIS_URL: redis://redis:6379/0
+
+  worker:
+    build: .
+    command: celery -A config worker -l info --concurrency ${CELERY_WORKER_CONCURRENCY:-2}
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-westock}:${POSTGRES_PASSWORD:-westock}@db:5432/${POSTGRES_DB:-westock}
+      REDIS_URL: redis://redis:6379/0
+
+  beat:
+    build: .
+    command: celery -A config beat -l info
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-westock}:${POSTGRES_PASSWORD:-westock}@db:5432/${POSTGRES_DB:-westock}
+      REDIS_URL: redis://redis:6379/0
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-westock}
+      POSTGRES_USER: ${POSTGRES_USER:-westock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-westock}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+
+volumes:
+  postgres_data:
