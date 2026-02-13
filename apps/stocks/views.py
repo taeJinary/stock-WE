@@ -1,5 +1,6 @@
-from django.db.models import Q
-from django.db.models import Sum
+from django.conf import settings
+from django.core.cache import cache
+from django.db.models import Q, Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -13,21 +14,7 @@ from services.watchlist_service import get_watchlist_limit
 from .models import Stock
 
 
-def stock_list(request):
-    query = request.GET.get("q", "").strip()
-    stocks = Stock.objects.all()
-    if query:
-        stocks = stocks.filter(Q(symbol__icontains=query) | Q(name__icontains=query))
-
-    return render(
-        request,
-        "stocks/list.html",
-        {"stocks": stocks[:100], "query": query},
-    )
-
-
-def stock_detail(request, symbol):
-    stock = get_object_or_404(Stock, symbol=symbol.upper())
+def _build_stock_detail_payload(stock):
     prices = list(stock.prices.order_by("-traded_at")[:30])[::-1]
     interest = list(stock.interest_records.order_by("-recorded_at")[:50])[::-1]
     news = get_related_news(stock_symbol=stock.symbol, limit=5)
@@ -52,6 +39,49 @@ def stock_detail(request, symbol):
         if row["day"] is not None
     ]
 
+    return {
+        "prices": prices,
+        "interest_records": interest,
+        "news_items": news,
+        "topic_cloud": topic_cloud,
+        "stock_anomaly": stock_anomaly,
+        "price_chart_data": price_chart_data,
+        "interest_chart_data": interest_chart_data,
+    }
+
+
+def _cached_stock_detail_payload(stock):
+    cache_key = f"stocks:detail:{stock.symbol}:v1"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    payload = _build_stock_detail_payload(stock)
+    cache.set(
+        cache_key,
+        payload,
+        timeout=settings.CACHE_TTL_STOCK_DETAIL,
+    )
+    return payload
+
+
+def stock_list(request):
+    query = request.GET.get("q", "").strip()
+    stocks = Stock.objects.all()
+    if query:
+        stocks = stocks.filter(Q(symbol__icontains=query) | Q(name__icontains=query))
+
+    return render(
+        request,
+        "stocks/list.html",
+        {"stocks": stocks[:100], "query": query},
+    )
+
+
+def stock_detail(request, symbol):
+    stock = get_object_or_404(Stock, symbol=symbol.upper())
+    detail_payload = _cached_stock_detail_payload(stock)
+
     user_watchlists = []
     watchlist_ids_with_stock = set()
     watchlist_limit = None
@@ -74,13 +104,7 @@ def stock_detail(request, symbol):
         "stocks/detail.html",
         {
             "stock": stock,
-            "prices": prices,
-            "interest_records": interest,
-            "news_items": news,
-            "topic_cloud": topic_cloud,
-            "stock_anomaly": stock_anomaly,
-            "price_chart_data": price_chart_data,
-            "interest_chart_data": interest_chart_data,
+            **detail_payload,
             "watchlists": user_watchlists,
             "watchlist_ids_with_stock": watchlist_ids_with_stock,
             "watchlist_limit": watchlist_limit,

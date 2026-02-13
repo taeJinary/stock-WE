@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from datetime import timedelta
 
 from django.db import transaction
@@ -103,17 +104,27 @@ def get_related_news(stock_symbol, limit=5):
 
 
 def get_latest_news_for_symbols(symbols, limit_per_symbol=2, since_hours=24):
-    if not symbols:
+    if not symbols or limit_per_symbol <= 0:
         return []
 
     since = timezone.now() - timedelta(hours=since_hours)
+    symbol_order = list(dict.fromkeys(symbols))
+    grouped_records = defaultdict(list)
+    records = (
+        NewsItem.objects.filter(stock__symbol__in=symbol_order, created_at__gte=since)
+        .select_related("stock")
+        .order_by("stock__symbol", "-published_at", "-id")
+    )
+    for record in records:
+        symbol = record.stock.symbol
+        bucket = grouped_records[symbol]
+        if len(bucket) >= limit_per_symbol:
+            continue
+        bucket.append(record)
+
     payload = []
-    for symbol in symbols:
-        records = (
-            NewsItem.objects.filter(stock__symbol=symbol, created_at__gte=since)
-            .order_by("-published_at", "-id")[:limit_per_symbol]
-        )
-        for record in records:
+    for symbol in symbol_order:
+        for record in grouped_records.get(symbol, []):
             payload.append(
                 {
                     "symbol": symbol,

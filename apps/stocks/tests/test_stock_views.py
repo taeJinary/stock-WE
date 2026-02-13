@@ -1,7 +1,9 @@
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -12,6 +14,7 @@ from apps.watchlist.models import Watchlist, WatchlistItem
 
 class StockViewsTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.stock = Stock.objects.create(
             symbol="VIEW1",
             name="View One",
@@ -95,3 +98,40 @@ class StockViewsTests(TestCase):
         self.assertGreaterEqual(len(response.context["news_items"]), 1)
         self.assertEqual(len(response.context["watchlists"]), 1)
         self.assertIn(watchlist.id, response.context["watchlist_ids_with_stock"])
+
+    @patch("apps.stocks.views.get_stock_interest_anomaly", return_value={})
+    @patch("apps.stocks.views.build_stock_topic_cloud", return_value=[])
+    @patch("apps.stocks.views.get_related_news", return_value=[])
+    def test_stock_detail_uses_cache_for_expensive_service_calls(
+        self,
+        mock_related_news,
+        mock_topic_cloud,
+        mock_stock_anomaly,
+    ):
+        now = timezone.now()
+        Price.objects.create(
+            stock=self.stock,
+            traded_at=timezone.localdate(),
+            open_price=Decimal("100"),
+            high_price=Decimal("105"),
+            low_price=Decimal("99"),
+            close_price=Decimal("104"),
+            volume=1000,
+        )
+        Interest.objects.create(
+            stock=self.stock,
+            source=Interest.Source.REDDIT,
+            recorded_at=now,
+            mentions=4,
+            metadata={"samples": [{"title": "View One signal"}]},
+        )
+
+        url = reverse("stocks:detail", kwargs={"symbol": self.stock.symbol})
+        first = self.client.get(url)
+        second = self.client.get(url)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        mock_related_news.assert_called_once()
+        mock_topic_cloud.assert_called_once()
+        mock_stock_anomaly.assert_called_once()
