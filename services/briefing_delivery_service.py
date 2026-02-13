@@ -3,7 +3,7 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage, get_connection
 from django.db.models import Q
 from django.utils import timezone
 
@@ -41,6 +41,41 @@ def _build_email_message(briefing):
         "Powered by WEStock"
     )
     return subject, message
+
+
+def _send_briefing_messages(subject: str, message: str, recipients: list[str]) -> tuple[int, list[dict[str, str]]]:
+    sent_count = 0
+    failures: list[dict[str, str]] = []
+    connection = get_connection(fail_silently=False)
+
+    try:
+        connection.open()
+    except Exception as exc:  # pragma: no cover
+        logger.error("Briefing email connection open failed: %s", exc)
+        return 0, [{"email": email, "error": str(exc)} for email in recipients]
+
+    try:
+        for email in recipients:
+            mail = EmailMessage(
+                subject=subject,
+                body=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[email],
+                connection=connection,
+            )
+            try:
+                sent = mail.send(fail_silently=False)
+                if sent == 1:
+                    sent_count += 1
+                else:
+                    failures.append({"email": email, "error": "UNSENT"})
+            except Exception as exc:  # pragma: no cover
+                failures.append({"email": email, "error": str(exc)})
+                logger.error("Briefing email send failed: %s", exc)
+    finally:
+        connection.close()
+
+    return sent_count, failures
 
 
 def send_daily_briefing_email(briefing_date=None, force=False) -> dict[str, Any]:
@@ -89,21 +124,11 @@ def send_daily_briefing_email(briefing_date=None, force=False) -> dict[str, Any]
         }
 
     subject, message = _build_email_message(briefing)
-    sent_count = 0
-    failures = []
-    for email in recipients:
-        try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
-            sent_count += 1
-        except Exception as exc:  # pragma: no cover
-            failures.append({"email": email, "error": str(exc)})
-            logger.error("Briefing email send failed: %s", exc)
+    sent_count, failures = _send_briefing_messages(
+        subject=subject,
+        message=message,
+        recipients=recipients,
+    )
 
     if sent_count == len(recipients):
         email_status = DailyBriefing.EmailStatus.SENT

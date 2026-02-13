@@ -35,13 +35,14 @@ class BriefingDeliveryServiceTests(TestCase):
         )
         return user
 
-    @patch("services.briefing_delivery_service.send_mail", return_value=1)
-    def test_send_daily_briefing_email_marks_sent_status(self, _mock_send_mail):
+    @patch("services.briefing_delivery_service._send_briefing_messages", return_value=(1, []))
+    def test_send_daily_briefing_email_marks_sent_status(self, mock_send_messages):
         self._create_active_subscriber("user1", "user1@example.com")
 
         result = send_daily_briefing_email(briefing_date=self.today)
         self.briefing.refresh_from_db()
 
+        mock_send_messages.assert_called_once()
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["sent_count"], 1)
         self.assertEqual(result["target_count"], 1)
@@ -61,22 +62,18 @@ class BriefingDeliveryServiceTests(TestCase):
         self.assertEqual(self.briefing.email_status, DailyBriefing.EmailStatus.SKIPPED)
         self.assertEqual(self.briefing.email_failure_reason, "NO_ACTIVE_RECIPIENTS")
 
-    @patch("services.briefing_delivery_service.send_mail")
-    def test_send_daily_briefing_email_marks_partial_when_some_fail(self, mock_send_mail):
+    @patch(
+        "services.briefing_delivery_service._send_briefing_messages",
+        return_value=(1, [{"email": "fail@example.com", "error": "smtp failure"}]),
+    )
+    def test_send_daily_briefing_email_marks_partial_when_some_fail(self, mock_send_messages):
         self._create_active_subscriber("ok-user", "ok@example.com")
         self._create_active_subscriber("fail-user", "fail@example.com")
-
-        def _send_mail_side_effect(*args, **kwargs):
-            recipient = kwargs["recipient_list"][0]
-            if recipient == "fail@example.com":
-                raise RuntimeError("smtp failure")
-            return 1
-
-        mock_send_mail.side_effect = _send_mail_side_effect
 
         result = send_daily_briefing_email(briefing_date=self.today)
         self.briefing.refresh_from_db()
 
+        mock_send_messages.assert_called_once()
         self.assertEqual(result["status"], "partial")
         self.assertEqual(result["sent_count"], 1)
         self.assertEqual(result["target_count"], 2)
