@@ -6,4 +6,6 @@ django-celery-beat==2.8.1
 psycopg[binary]==3.2.10
 httpx==0.28.1
 beautifulsoup4==4.13.5
+gunicorn==23.0.0
+whitenoise==6.9.0
 bandit==1.7.9
