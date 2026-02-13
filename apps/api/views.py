@@ -5,7 +5,6 @@ from django.utils import timezone
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.stocks.models import Stock
@@ -17,7 +16,9 @@ from services.interest_service import (
 from services.news_service import get_related_news
 from services.stock_service import get_market_summary
 
+from .pagination import ApiPageNumberPagination
 from .permissions import HasApiPlanPermission
+from .responses import success_response
 from .serializers import (
     InterestAnomalySerializer,
     MarketSummaryItemSerializer,
@@ -26,15 +27,17 @@ from .serializers import (
 )
 
 
-def _parse_positive_int(value, *, default, minimum=1, maximum=365):
+def _parse_positive_int(field_name, value, *, default, minimum=1, maximum=365):
     if value in (None, ""):
         return default
     try:
         parsed = int(value)
     except (TypeError, ValueError) as exc:
-        raise ValidationError(f"Must be an integer between {minimum} and {maximum}") from exc
+        raise ValidationError(
+            {field_name: [f"Must be an integer between {minimum} and {maximum}"]}
+        ) from exc
     if parsed < minimum or parsed > maximum:
-        raise ValidationError(f"Must be between {minimum} and {maximum}")
+        raise ValidationError({field_name: [f"Must be between {minimum} and {maximum}"]})
     return parsed
 
 
@@ -47,27 +50,46 @@ class MarketSummaryApiView(BaseProtectedApiView):
     def get(self, request):
         rows = get_market_summary()
         serializer = MarketSummaryItemSerializer(rows, many=True)
-        return Response({"status": "success", "data": serializer.data})
+        return success_response(serializer.data)
 
 
 class TopInterestApiView(BaseProtectedApiView):
     def get(self, request):
-        limit = _parse_positive_int(request.query_params.get("limit"), default=10, maximum=100)
-        hours = _parse_positive_int(request.query_params.get("hours"), default=24, maximum=720)
+        limit = _parse_positive_int(
+            "limit",
+            request.query_params.get("limit"),
+            default=10,
+            maximum=100,
+        )
+        hours = _parse_positive_int(
+            "hours",
+            request.query_params.get("hours"),
+            default=24,
+            maximum=720,
+        )
         rows = get_top_interest_stocks(limit=limit, hours=hours, only_positive=True)
-        serializer = TopInterestStockSerializer(rows, many=True)
-        return Response({"status": "success", "data": serializer.data})
+        paginator = ApiPageNumberPagination()
+        page_rows = paginator.paginate_queryset(rows, request, view=self)
+        serializer = TopInterestStockSerializer(page_rows, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class InterestAnomalyApiView(BaseProtectedApiView):
     def get(self, request):
-        limit = _parse_positive_int(request.query_params.get("limit"), default=8, maximum=100)
+        limit = _parse_positive_int(
+            "limit",
+            request.query_params.get("limit"),
+            default=8,
+            maximum=100,
+        )
         recent_hours = _parse_positive_int(
+            "recent_hours",
             request.query_params.get("recent_hours"),
             default=6,
             maximum=48,
         )
         baseline_hours = _parse_positive_int(
+            "baseline_hours",
             request.query_params.get("baseline_hours"),
             default=72,
             maximum=720,
@@ -77,24 +99,29 @@ class InterestAnomalyApiView(BaseProtectedApiView):
             recent_hours=recent_hours,
             baseline_hours=baseline_hours,
         )
-        serializer = InterestAnomalySerializer(rows, many=True)
-        return Response({"status": "success", "data": serializer.data})
+        paginator = ApiPageNumberPagination()
+        page_rows = paginator.paginate_queryset(rows, request, view=self)
+        serializer = InterestAnomalySerializer(page_rows, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class StockSummaryApiView(BaseProtectedApiView):
     def get(self, request, symbol):
         stock = get_object_or_404(Stock, symbol=symbol.upper())
         price_days = _parse_positive_int(
+            "price_days",
             request.query_params.get("price_days"),
             default=30,
             maximum=180,
         )
         interest_days = _parse_positive_int(
+            "interest_days",
             request.query_params.get("interest_days"),
             default=60,
             maximum=365,
         )
         news_limit = _parse_positive_int(
+            "news_limit",
             request.query_params.get("news_limit"),
             default=5,
             maximum=20,
@@ -146,4 +173,4 @@ class StockSummaryApiView(BaseProtectedApiView):
             "stock_anomaly": get_stock_interest_anomaly(stock=stock),
         }
         serializer = StockSummarySerializer(payload)
-        return Response({"status": "success", "data": serializer.data})
+        return success_response(serializer.data)
