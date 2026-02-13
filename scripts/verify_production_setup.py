@@ -87,6 +87,12 @@ def validate_production_compose_text(compose_text: str) -> list[str]:
 
     if not _contains(web_block, "SECURE_PROXY_SSL_HEADER"):
         errors.append("web service must define SECURE_PROXY_SSL_HEADER.")
+    if not _contains(web_block, "DJANGO_ENV: production"):
+        errors.append("web service must set DJANGO_ENV: production.")
+    if not _contains(web_block, 'DEBUG: "False"'):
+        errors.append('web service must set DEBUG: "False".')
+    if not _contains(web_block, "collectstatic"):
+        errors.append("web service command must include collectstatic before gunicorn.")
 
     return errors
 

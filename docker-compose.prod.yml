@@ -13,13 +13,15 @@ services:
 
   web:
     build: .
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-4} --timeout ${GUNICORN_TIMEOUT:-30} --access-logfile - --error-logfile -
+    command: /bin/sh -c "python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-4} --timeout ${GUNICORN_TIMEOUT:-30} --access-logfile - --error-logfile -"
     depends_on:
       - db
       - redis
     env_file:
       - .env
     environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
       DATABASE_URL: postgresql://${POSTGRES_USER:-westock}:${POSTGRES_PASSWORD:-westock}@db:5432/${POSTGRES_DB:-westock}
       REDIS_URL: redis://redis:6379/0
       SECURE_PROXY_SSL_HEADER: ${SECURE_PROXY_SSL_HEADER:-HTTP_X_FORWARDED_PROTO,https}
@@ -33,6 +35,8 @@ services:
     env_file:
       - .env
     environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
       DATABASE_URL: postgresql://${POSTGRES_USER:-westock}:${POSTGRES_PASSWORD:-westock}@db:5432/${POSTGRES_DB:-westock}
       REDIS_URL: redis://redis:6379/0
 
@@ -45,6 +49,8 @@ services:
     env_file:
       - .env
     environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
       DATABASE_URL: postgresql://${POSTGRES_USER:-westock}:${POSTGRES_PASSWORD:-westock}@db:5432/${POSTGRES_DB:-westock}
       REDIS_URL: redis://redis:6379/0
 
