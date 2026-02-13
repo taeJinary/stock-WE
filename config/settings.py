@@ -148,6 +148,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "api_read": os.getenv("API_THROTTLE_RATE", "120/min"),
+        "auth_token": os.getenv("API_AUTH_TOKEN_THROTTLE_RATE", "10/min"),
     },
 }
 
