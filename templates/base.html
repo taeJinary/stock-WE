@@ -1,6 +1,7 @@
 {% load static %}
 <!doctype html>
 <html lang="ko">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,48 +10,104 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
+
 <body>
   {% block body %}
-  <header class="site-header">
-    <h1><a href="{% url 'dashboard:home' %}">WEStock</a></h1>
-    <button class="nav-toggle" id="nav-toggle" aria-label="메뉴 열기">☰</button>
-    <nav id="main-nav">
-      <a href="{% url 'dashboard:home' %}">대시보드</a>
-      <a href="{% url 'stocks:list' %}">종목</a>
-      <a href="{% url 'briefing:list' %}">브리핑</a>
-      <a href="{% url 'watchlist:list' %}">관심종목</a>
-      {% if request.user.is_authenticated %}
-        <a href="{% url 'accounts:profile' %}">프로필</a>
-        <a href="{% url 'accounts:logout' %}">로그아웃</a>
-      {% else %}
-        <a href="{% url 'accounts:login' %}">로그인</a>
-        <a href="{% url 'accounts:signup' %}">회원가입</a>
-      {% endif %}
-    </nav>
+  <!-- ===== TOP HEADER BAR ===== -->
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <h1 class="logo"><a href="{% url 'dashboard:home' %}"><span
+            class="logo-icon material-icons-round">show_chart</span>WEStock</a></h1>
+      <form class="header-search" method="get" action="{% url 'stocks:list' %}">
+        <span class="material-icons-round search-icon">search</span>
+        <input type="text" name="q" placeholder="종목코드 또는 종목명 검색..." autocomplete="off">
+        <button type="submit">검색</button>
+      </form>
+      <div class="user-menu">
+        {% if request.user.is_authenticated %}
+        <a href="{% url 'accounts:profile' %}" class="user-link"><span class="material-icons-round">person</span>{{ request.user.username }}</a>
+        <a href="{% url 'accounts:logout' %}" class="user-link logout">로그아웃</a>
+        {% else %}
+        <a href="{% url 'accounts:login' %}" class="user-link">로그인</a>
+        <a href="{% url 'accounts:signup' %}" class="btn-signup">회원가입</a>
+        {% endif %}
+      </div>
+      <button class="nav-toggle" id="nav-toggle" aria-label="메뉴 열기"><span
+          class="material-icons-round">menu</span></button>
+    </div>
   </header>
-  <main class="container">
+
+  <!-- ===== MAIN NAVIGATION TABS ===== -->
+  <nav class="main-nav" id="main-nav">
+    <div class="main-nav-inner">
+      <div class="nav-tabs">
+        <a href="{% url 'dashboard:home' %}" class="nav-tab {% block nav_dashboard %}{% endblock %}"><span
+            class="material-icons-round">dashboard</span>대시보드</a>
+        <a href="{% url 'stocks:list' %}" class="nav-tab {% block nav_stocks %}{% endblock %}"><span
+            class="material-icons-round">trending_up</span>종목</a>
+        <a href="{% url 'briefing:list' %}" class="nav-tab {% block nav_briefing %}{% endblock %}"><span
+            class="material-icons-round">article</span>브리핑</a>
+        <a href="{% url 'watchlist:list' %}" class="nav-tab {% block nav_watchlist %}{% endblock %}"><span
+            class="material-icons-round">star</span>관심종목</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== SUB NAVIGATION ===== -->
+  {% block subnav %}{% endblock %}
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <div class="page-container">
     {% if messages %}
-      <section class="message-stack">
-        {% for message in messages %}
-          <p class="message {{ message.tags }}">{{ message }}</p>
-        {% endfor %}
-      </section>
+    <section class="message-stack">
+      {% for message in messages %}
+      <p class="message {{ message.tags }}">
+        <span class="material-icons-round msg-icon">{% if message.tags == 'success' %}check_circle{% elif message.tags
+          == 'error' %}error{% else %}info{% endif %}</span>
+        {{ message }}
+      </p>
+      {% endfor %}
+    </section>
     {% endif %}
-    {% block content %}{% endblock %}
-  </main>
+
+    <div class="page-layout">
+      <main class="main-content">
+        {% block content %}{% endblock %}
+      </main>
+      {% block sidebar %}{% endblock %}
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
   <footer class="site-footer">
-    &copy; 2026 WEStock. AI 기반 글로벌 시장 인텔리전스.
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="logo-icon material-icons-round">show_chart</span>
+        <strong>WEStock</strong>
+        <span class="footer-tagline">AI 기반 글로벌 시장 인텔리전스</span>
+      </div>
+      <div class="footer-links">
+        <a href="{% url 'dashboard:home' %}">대시보드</a>
+        <a href="{% url 'stocks:list' %}">종목</a>
+        <a href="{% url 'briefing:list' %}">브리핑</a>
+        <a href="{% url 'watchlist:list' %}">관심종목</a>
+      </div>
+      <p class="footer-copy">&copy; 2026 WEStock. All rights reserved.</p>
+    </div>
   </footer>
   {% endblock %}
+
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="{% static 'js/charts.js' %}"></script>
   <script>
-    document.getElementById('nav-toggle')?.addEventListener('click', function() {
+    document.getElementById('nav-toggle')?.addEventListener('click', function () {
       document.getElementById('main-nav')?.classList.toggle('open');
     });
   </script>
 </body>
+
 </html>

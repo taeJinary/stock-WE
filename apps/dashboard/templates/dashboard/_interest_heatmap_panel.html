@@ -1,9 +1,9 @@
 <section class="panel" id="interest-heatmap-panel">
   <div class="panel-head">
-    <h2>관심도 히트맵 (섹터별)</h2>
+    <h2><span class="material-icons-round">grid_view</span>섹터별 관심도</h2>
     <button type="button" class="btn-refresh" hx-get="{% url 'dashboard:interest-heatmap-partial' %}"
       hx-target="#interest-heatmap-panel" hx-swap="outerHTML">
-      새로고침
+      <span class="material-icons-round" style="font-size:0.9rem">refresh</span>새로고침
     </button>
   </div>
 
@@ -12,7 +12,7 @@
     {% for item in sector_heatmap %}
     <article class="heatmap-card" style="--intensity: {{ item.intensity }};">
       <h3>{{ item.sector }}</h3>
-      <p>{{ item.mentions }}건 언급</p>
+      <p>{{ item.mentions }}건</p>
     </article>
     {% endfor %}
   </div>

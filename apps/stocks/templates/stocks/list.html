@@ -1,21 +1,25 @@
 {% extends "base.html" %}
 
 {% block title %}종목 검색 — WEStock{% endblock %}
+{% block nav_stocks %}active{% endblock %}
 
 {% block content %}
 <section class="panel">
   <div class="panel-head">
-    <h2>종목 검색</h2>
+    <h2><span class="material-icons-round">search</span>종목 검색</h2>
   </div>
-  <form method="get" class="inline-form">
+  <form method="get" class="search-form-panel">
     <input type="text" name="q" value="{{ query }}" placeholder="종목코드 또는 종목명 검색..." />
-    <button type="submit">검색</button>
+    <button type="submit"><span class="material-icons-round" style="font-size:1rem">search</span>검색</button>
   </form>
 </section>
 
 <section class="panel">
   <div class="panel-head">
-    <h2>검색 결과</h2>
+    <h2><span class="material-icons-round">list_alt</span>검색 결과</h2>
+    {% if stocks %}
+    <span class="panel-badge">{{ stocks|length }}건</span>
+    {% endif %}
   </div>
   <div class="table-scroll">
     <table>

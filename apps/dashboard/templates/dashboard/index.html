@@ -1,11 +1,47 @@
 {% extends "base.html" %}
 
 {% block title %}WEStock Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block subnav %}
+<div class="subnav-bar">
+    <div class="subnav-inner">
+        <a href="{% url 'dashboard:home' %}" class="subnav-link active">AI정보분석 홈</a>
+        <a href="{% url 'stocks:list' %}" class="subnav-link">종목 검색</a>
+        <a href="{% url 'briefing:list' %}" class="subnav-link">모닝 브리핑</a>
+    </div>
+</div>
+{% endblock %}
 
 {% block content %}
 {% include "dashboard/_market_summary_panel.html" %}
 {% include "dashboard/_top_interest_panel.html" %}
 {% include "dashboard/_anomaly_alert_panel.html" %}
-{% include "dashboard/_interest_heatmap_panel.html" %}
 {% include "dashboard/_interest_timeline_panel.html" %}
+{% endblock %}
+
+{% block sidebar %}
+<aside class="sidebar">
+    {% include "dashboard/_interest_heatmap_panel.html" %}
+
+    <div class="panel">
+        <div class="panel-head">
+            <h2><span class="material-icons-round">article</span>최신 브리핑</h2>
+            <a href="{% url 'briefing:list' %}" class="more-link">더보기 →</a>
+        </div>
+        <p class="empty-note" style="padding: 0.5rem 0;">브리핑 페이지에서 확인하세요.</p>
+    </div>
+
+    <div class="panel">
+        <div class="panel-head">
+            <h2><span class="material-icons-round">star</span>관심종목</h2>
+            <a href="{% url 'watchlist:list' %}" class="more-link">더보기 →</a>
+        </div>
+        {% if request.user.is_authenticated %}
+        <p class="empty-note" style="padding: 0.5rem 0;">관심종목 페이지에서 관리하세요.</p>
+        {% else %}
+        <p class="empty-note" style="padding: 0.5rem 0;"><a href="{% url 'accounts:login' %}">로그인</a>하여 관심종목을 추가하세요.</p>
+        {% endif %}
+    </div>
+</aside>
 {% endblock %}
