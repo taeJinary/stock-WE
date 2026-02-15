@@ -60,11 +60,38 @@ def _find_index(text: str, token: str) -> int:
     return text.find(token)
 
 
+def _validate_service_health_dependencies(block_lines: list[str], service_name: str) -> list[str]:
+    errors: list[str] = []
+    block_text = "\n".join(block_lines)
+    if "depends_on:" not in block_text:
+        errors.append(f"{service_name} service must define depends_on with health checks.")
+        return errors
+
+    if "db:" not in block_text or "redis:" not in block_text:
+        errors.append(f"{service_name} service must depend on db and redis.")
+
+    healthy_count = block_text.count("condition: service_healthy")
+    if healthy_count < 2:
+        errors.append(
+            f"{service_name} service must use condition: service_healthy for db and redis."
+        )
+
+    return errors
+
+
+def _validate_dependency_healthcheck(block_lines: list[str], service_name: str) -> list[str]:
+    errors: list[str] = []
+    block_text = "\n".join(block_lines)
+    if "healthcheck:" not in block_text:
+        errors.append(f"{service_name} service must define healthcheck in compose.")
+    return errors
+
+
 def validate_production_compose_text(compose_text: str) -> list[str]:
     errors: list[str] = []
     blocks = extract_service_blocks(compose_text)
 
-    required_services = {"proxy", "web", "db", "redis"}
+    required_services = {"proxy", "web", "worker", "beat", "db", "redis"}
     missing = sorted(required_services - set(blocks.keys()))
     if missing:
         errors.append(f"Missing services in docker-compose.prod.yml: {', '.join(missing)}")
@@ -81,6 +108,8 @@ def validate_production_compose_text(compose_text: str) -> list[str]:
         errors.append("db service must not expose host ports in production compose.")
     if _has_key(redis_block, "ports"):
         errors.append("redis service must not expose host ports in production compose.")
+    errors.extend(_validate_dependency_healthcheck(db_block, "db"))
+    errors.extend(_validate_dependency_healthcheck(redis_block, "redis"))
 
     if not _has_key(proxy_block, "ports"):
         errors.append("proxy service must expose ports for external traffic.")
@@ -109,6 +138,9 @@ def validate_production_compose_text(compose_text: str) -> list[str]:
         errors.append("web service command must run migrate before collectstatic in production compose.")
     if collectstatic_index != -1 and gunicorn_index != -1 and collectstatic_index > gunicorn_index:
         errors.append("web service command must include collectstatic before gunicorn.")
+    errors.extend(_validate_service_health_dependencies(web_block, "web"))
+    errors.extend(_validate_service_health_dependencies(blocks["worker"], "worker"))
+    errors.extend(_validate_service_health_dependencies(blocks["beat"], "beat"))
 
     return errors
 
@@ -126,6 +158,8 @@ def validate_development_compose_text(compose_text: str) -> list[str]:
     web_block = blocks["web"]
     db_block = blocks["db"]
     redis_block = blocks["redis"]
+    worker_block = blocks.get("worker")
+    beat_block = blocks.get("beat")
 
     if not _has_key(web_block, "ports"):
         errors.append("web service must expose a host port in development compose.")
@@ -142,16 +176,24 @@ def validate_development_compose_text(compose_text: str) -> list[str]:
     runserver_index = _find_index(web_text, "runserver")
     if migrate_index != -1 and runserver_index != -1 and migrate_index > runserver_index:
         errors.append("web service command must run migrate before runserver in development compose.")
+    errors.extend(_validate_service_health_dependencies(web_block, "web"))
 
     if not _has_key(db_block, "ports"):
         errors.append("db service must expose host port in development compose.")
     if not _contains(db_block, "5432:5432"):
         errors.append('db service must map "5432:5432" in development compose.')
+    errors.extend(_validate_dependency_healthcheck(db_block, "db"))
 
     if not _has_key(redis_block, "ports"):
         errors.append("redis service must expose host port in development compose.")
     if not _contains(redis_block, "6379:6379"):
         errors.append('redis service must map "6379:6379" in development compose.')
+    errors.extend(_validate_dependency_healthcheck(redis_block, "redis"))
+
+    if worker_block is not None:
+        errors.extend(_validate_service_health_dependencies(worker_block, "worker"))
+    if beat_block is not None:
+        errors.extend(_validate_service_health_dependencies(beat_block, "beat"))
 
     return errors
 
