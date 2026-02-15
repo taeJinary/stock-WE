@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 
 {% block title %}관심종목 — WEStock{% endblock %}
+{% block nav_watchlist %}active{% endblock %}
 
 {% block content %}
 <section class="panel">
   <div class="panel-head">
-    <h2>내 관심종목</h2>
+    <h2><span class="material-icons-round">star</span>내 관심종목</h2>
     {% if watchlist_limit %}
-    <p class="meta-note">Free 플랜: 최대 {{ watchlist_limit }}개</p>
+    <span class="panel-badge">Free · 최대 {{ watchlist_limit }}개</span>
     {% else %}
-    <p class="meta-note">현재 플랜: 무제한</p>
+    <span class="panel-badge">무제한</span>
     {% endif %}
   </div>
 
@@ -17,18 +18,23 @@
     {% csrf_token %}
     <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
     <input id="watchlist-name" type="text" name="name" maxlength="120" required placeholder="새 워치리스트 이름 입력...">
-    <button type="submit">생성</button>
+    <button type="submit"><span class="material-icons-round" style="font-size:1rem">add</span>생성</button>
   </form>
 </section>
 
 {% for watchlist in watchlists %}
 <section class="panel watchlist-block">
   <div class="panel-head">
-    <h3 style="font-weight: 600;">{{ watchlist.name }}{% if watchlist.is_default %} (기본){% endif %}</h3>
+    <h2>
+      <span class="material-icons-round">folder</span>
+      {{ watchlist.name }}{% if watchlist.is_default %} <span class="panel-badge">기본</span>{% endif %}
+    </h2>
     <form method="post" action="{% url 'watchlist:delete' watchlist.id %}" class="inline-form">
       {% csrf_token %}
       <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
-      <button type="submit">삭제</button>
+      <button type="submit" style="color: var(--down); border-color: rgba(239,68,68,0.2);">
+        <span class="material-icons-round" style="font-size:0.9rem">delete</span>삭제
+      </button>
     </form>
   </div>
 
@@ -45,7 +51,7 @@
         {% csrf_token %}
         <input type="hidden" name="watchlist_id" value="{{ watchlist.id }}">
         <input type="hidden" name="next" value="{% url 'watchlist:list' %}">
-        <button type="submit">제거</button>
+        <button type="submit" style="padding:0.3rem 0.6rem;font-size:0.78rem;">제거</button>
       </form>
     </li>
     {% empty %}

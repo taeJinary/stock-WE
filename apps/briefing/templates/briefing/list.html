@@ -1,28 +1,33 @@
 {% extends "base.html" %}
 
 {% block title %}모닝 브리핑 — WEStock{% endblock %}
+{% block nav_briefing %}active{% endblock %}
 
 {% block content %}
 <section class="panel">
   <div class="panel-head">
-    <h2>모닝 브리핑</h2>
+    <h2><span class="material-icons-round">article</span>모닝 브리핑</h2>
+    {% if briefings %}
+    <span class="panel-badge">{{ briefings|length }}건</span>
+    {% endif %}
   </div>
-  <ul style="list-style: none;">
-    {% for briefing in briefings %}
-    <li style="padding: 1rem 0; border-bottom: 1px solid var(--border);">
-      <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem;">{{ briefing.briefing_date }} — {{
-        briefing.title }}</h3>
-      <p class="meta-note">
-        이메일={{ briefing.email_status }}
-        · 발송={{ briefing.email_sent_count }}건
-        · 대상={{ briefing.email_target_count }}건
-        {% if briefing.email_sent_at %} · {{ briefing.email_sent_at }}{% endif %}
-      </p>
-      <p style="margin-top: 0.5rem; color: var(--text-secondary);">{{ briefing.summary }}</p>
-    </li>
-    {% empty %}
-    <li class="empty-note">아직 생성된 브리핑이 없습니다.</li>
-    {% endfor %}
-  </ul>
+
+  {% for briefing in briefings %}
+  <div class="briefing-card">
+    <h3>
+      <span class="briefing-date">{{ briefing.briefing_date }}</span>
+      {{ briefing.title }}
+    </h3>
+    <p class="meta-note">
+      이메일={{ briefing.email_status }}
+      · 발송={{ briefing.email_sent_count }}건
+      · 대상={{ briefing.email_target_count }}건
+      {% if briefing.email_sent_at %} · {{ briefing.email_sent_at }}{% endif %}
+    </p>
+    <p class="briefing-summary">{{ briefing.summary }}</p>
+  </div>
+  {% empty %}
+  <p class="empty-note">아직 생성된 브리핑이 없습니다.</p>
+  {% endfor %}
 </section>
 {% endblock %}

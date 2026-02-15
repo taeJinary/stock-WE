@@ -1,44 +1,32 @@
 <section class="panel" id="anomaly-alert-panel">
   <div class="panel-head">
-    <h2>이상 징후</h2>
+    <h2><span class="material-icons-round">warning</span>이상 징후</h2>
     <button type="button" class="btn-refresh" hx-get="{% url 'dashboard:anomaly-alert-partial' %}"
       hx-target="#anomaly-alert-panel" hx-swap="outerHTML">
-      새로고침
+      <span class="material-icons-round" style="font-size:0.9rem">refresh</span>새로고침
     </button>
   </div>
 
   {% if has_anomaly_data %}
-  <div class="table-scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>종목</th>
-          <th>최근</th>
-          <th>예상</th>
-          <th>급등비</th>
-          <th>Z-Score</th>
-          <th>심각도</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in anomaly_alerts %}
-        <tr>
-          <td>
-            <a href="{% url 'stocks:detail' item.symbol %}">{{ item.symbol }}</a>
-          </td>
-          <td>{{ item.recent_mentions }}</td>
-          <td>{{ item.expected_mentions }}</td>
-          <td>{{ item.surge_ratio }}x</td>
-          <td>{{ item.z_score }}</td>
-          <td>
-            <span class="severity-badge severity-{{ item.severity }}">
-              {{ item.severity|upper }}
-            </span>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="alert-card-list">
+    {% for item in anomaly_alerts %}
+    <div class="alert-card">
+      <div class="alert-icon severity-{{ item.severity }}">
+        <span class="material-icons-round">{% if item.severity == 'high' %}error{% else %}warning{% endif %}</span>
+      </div>
+      <div class="alert-body">
+        <div class="alert-title">
+          <a href="{% url 'stocks:detail' item.symbol %}">{{ item.symbol }}</a>
+          <span class="severity-badge severity-{{ item.severity }}" style="margin-left:0.4rem">{{ item.severity|upper
+            }}</span>
+        </div>
+        <p class="alert-meta">
+          급등비 {{ item.surge_ratio }}x · 최근 {{ item.recent_mentions }}건 / 예상 {{ item.expected_mentions }}건 · Z-Score {{
+          item.z_score }}
+        </p>
+      </div>
+    </div>
+    {% endfor %}
   </div>
   {% else %}
   <p class="empty-note">현재 이상 징후가 없습니다.</p>

@@ -1,33 +1,25 @@
 <section class="panel" id="top-interest-panel">
   <div class="panel-head">
-    <h2>관심도 급등 종목</h2>
+    <h2><span class="material-icons-round">local_fire_department</span>관심도 급등 종목</h2>
     <button type="button" class="btn-refresh" hx-get="{% url 'dashboard:top-interest-partial' %}"
       hx-target="#top-interest-panel" hx-swap="outerHTML">
-      새로고침
+      <span class="material-icons-round" style="font-size:0.9rem">refresh</span>새로고침
     </button>
   </div>
 
   {% if has_interest_data %}
-  <table>
-    <thead>
-      <tr>
-        <th>종목코드</th>
-        <th>종목명</th>
-        <th>관심도</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for stock in top_interest_stocks %}
-      <tr>
-        <td>
-          <a href="{% url 'stocks:detail' stock.symbol %}">{{ stock.symbol }}</a>
-        </td>
-        <td>{{ stock.name }}</td>
-        <td>{{ stock.total_mentions }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <ol class="ranking-list">
+    {% for stock in top_interest_stocks %}
+    <li class="ranking-item">
+      <span class="ranking-num {% if forloop.counter == 1 %}top-1{% elif forloop.counter == 2 %}top-2{% elif forloop.counter == 3 %}top-3{% endif %}">{{ forloop.counter }}</span>
+      <div class="ranking-name">
+        <a href="{% url 'stocks:detail' stock.symbol %}">{{ stock.name }}</a>
+        <span class="ranking-symbol">{{ stock.symbol }}</span>
+      </div>
+      <span class="ranking-value up">{{ stock.total_mentions }}</span>
+    </li>
+    {% endfor %}
+  </ol>
   {% else %}
   <p class="empty-note">집계된 관심도 데이터가 없습니다.</p>
   {% endif %}

@@ -1,9 +1,9 @@
 <section class="panel" id="interest-timeline-panel">
   <div class="panel-head">
-    <h2>관심도 타임라인 (24시간)</h2>
+    <h2><span class="material-icons-round">timeline</span>관심도 타임라인 (24시간)</h2>
     <button type="button" class="btn-refresh" hx-get="{% url 'dashboard:interest-timeline-partial' %}"
       hx-target="#interest-timeline-panel" hx-swap="outerHTML">
-      새로고침
+      <span class="material-icons-round" style="font-size:0.9rem">refresh</span>새로고침
     </button>
   </div>
 
