@@ -1,4 +1,4 @@
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
@@ -33,3 +33,8 @@ def signup(request):
         form = SignupForm()
 
     return render(request, "accounts/signup.html", {"form": form})
+
+
+def logout_redirect_home(request):
+    logout(request)
+    return redirect("dashboard:home")

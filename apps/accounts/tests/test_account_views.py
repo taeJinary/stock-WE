@@ -96,3 +96,13 @@ class AccountViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "이미 사용 중인 이메일입니다.")
+
+    def test_logout_get_redirects_home_and_logs_user_out(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("accounts:logout"))
+
+        self.assertRedirects(response, reverse("dashboard:home"))
+        profile_response = self.client.get(reverse("accounts:profile"))
+        self.assertEqual(profile_response.status_code, 302)
+        self.assertIn(reverse("accounts:login"), profile_response.url)
