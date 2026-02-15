@@ -50,6 +50,10 @@ services:
         self.assertIn("web service must define SECURE_PROXY_SSL_HEADER.", errors)
         self.assertIn("web service must set DJANGO_ENV: production.", errors)
         self.assertIn('web service must set DEBUG: "False".', errors)
+        self.assertIn(
+            "web service command must include migrate before collectstatic in production compose.",
+            errors,
+        )
         self.assertIn("web service command must include collectstatic before gunicorn.", errors)
 
     def test_validate_caddy_text_detects_missing_required_directives(self):
@@ -81,6 +85,11 @@ services:
         self.assertIn("web service must expose a host port in development compose.", errors)
         self.assertIn("web service must set DJANGO_ENV: development.", errors)
         self.assertIn('web service must set DEBUG: "True".', errors)
+        self.assertIn(
+            "web service command must include migrate before runserver in development compose.",
+            errors,
+        )
+        self.assertIn("web service command must include runserver in development compose.", errors)
         self.assertIn("db service must expose host port in development compose.", errors)
         self.assertIn("redis service must expose host port in development compose.", errors)
 
