@@ -56,6 +56,10 @@ def _contains(block_lines: list[str], text: str) -> bool:
     return any(text in line for line in block_lines)
 
 
+def _find_index(text: str, token: str) -> int:
+    return text.find(token)
+
+
 def validate_production_compose_text(compose_text: str) -> list[str]:
     errors: list[str] = []
     blocks = extract_service_blocks(compose_text)
@@ -91,7 +95,19 @@ def validate_production_compose_text(compose_text: str) -> list[str]:
         errors.append("web service must set DJANGO_ENV: production.")
     if not _contains(web_block, 'DEBUG: "False"'):
         errors.append('web service must set DEBUG: "False".')
-    if not _contains(web_block, "collectstatic"):
+    web_text = "\n".join(web_block)
+    if "migrate" not in web_text:
+        errors.append("web service command must include migrate before collectstatic in production compose.")
+    if "collectstatic" not in web_text:
+        errors.append("web service command must include collectstatic before gunicorn.")
+    if "gunicorn" not in web_text:
+        errors.append("web service command must include gunicorn in production compose.")
+    migrate_index = _find_index(web_text, "migrate")
+    collectstatic_index = _find_index(web_text, "collectstatic")
+    gunicorn_index = _find_index(web_text, "gunicorn")
+    if migrate_index != -1 and collectstatic_index != -1 and migrate_index > collectstatic_index:
+        errors.append("web service command must run migrate before collectstatic in production compose.")
+    if collectstatic_index != -1 and gunicorn_index != -1 and collectstatic_index > gunicorn_index:
         errors.append("web service command must include collectstatic before gunicorn.")
 
     return errors
@@ -117,6 +133,15 @@ def validate_development_compose_text(compose_text: str) -> list[str]:
         errors.append("web service must set DJANGO_ENV: development.")
     if not _contains(web_block, 'DEBUG: "True"'):
         errors.append('web service must set DEBUG: "True".')
+    web_text = "\n".join(web_block)
+    if "migrate" not in web_text:
+        errors.append("web service command must include migrate before runserver in development compose.")
+    if "runserver" not in web_text:
+        errors.append("web service command must include runserver in development compose.")
+    migrate_index = _find_index(web_text, "migrate")
+    runserver_index = _find_index(web_text, "runserver")
+    if migrate_index != -1 and runserver_index != -1 and migrate_index > runserver_index:
+        errors.append("web service command must run migrate before runserver in development compose.")
 
     if not _has_key(db_block, "ports"):
         errors.append("db service must expose host port in development compose.")
