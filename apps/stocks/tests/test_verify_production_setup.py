@@ -32,6 +32,10 @@ services:
     build: .
     ports:
       - "8080:8000"
+  worker:
+    build: .
+  beat:
+    build: .
   db:
     image: postgres:16
     ports:
@@ -55,6 +59,11 @@ services:
             errors,
         )
         self.assertIn("web service command must include collectstatic before gunicorn.", errors)
+        self.assertIn("db service must define healthcheck in compose.", errors)
+        self.assertIn("redis service must define healthcheck in compose.", errors)
+        self.assertIn("web service must define depends_on with health checks.", errors)
+        self.assertIn("worker service must define depends_on with health checks.", errors)
+        self.assertIn("beat service must define depends_on with health checks.", errors)
 
     def test_validate_caddy_text_detects_missing_required_directives(self):
         caddy_text = """
@@ -90,6 +99,9 @@ services:
             errors,
         )
         self.assertIn("web service command must include runserver in development compose.", errors)
+        self.assertIn("web service must define depends_on with health checks.", errors)
         self.assertIn("db service must expose host port in development compose.", errors)
+        self.assertIn("db service must define healthcheck in compose.", errors)
         self.assertIn("redis service must expose host port in development compose.", errors)
+        self.assertIn("redis service must define healthcheck in compose.", errors)
 
