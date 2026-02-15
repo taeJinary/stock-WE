@@ -1,56 +1,108 @@
 {% extends "base.html" %}
 
 {% block title %}{{ stock.symbol }} — WEStock{% endblock %}
-{% block nav_stocks %}active{% endblock %}
 
 {% block content %}
-<!-- Stock Header -->
 <section class="panel">
-  <div class="stock-header">
+  <div class="panel-head">
     <h2>{{ stock.symbol }} — {{ stock.name }}</h2>
-    <div class="stock-meta-chips">
-      <span class="stock-chip">{{ stock.get_market_display }}</span>
-      {% if stock.sector %}<span class="stock-chip">{{ stock.sector }}</span>{% endif %}
-    </div>
   </div>
+  <p><strong>시장:</strong> {{ stock.get_market_display }}</p>
+  <p><strong>섹터:</strong> {{ stock.sector|default:"—" }}</p>
+</section>
 
-  {% if stock_anomaly %}
-  <div style="margin-top: 0.75rem;">
-    <div class="alert-card" style="margin:0;">
-      <div class="alert-icon severity-{{ stock_anomaly.severity }}">
-        <span class="material-icons-round">{% if stock_anomaly.severity == 'high' %}error{% else %}warning{% endif
-          %}</span>
-      </div>
-      <div class="alert-body">
-        <div class="alert-title">
-          관심도 <strong>{{ stock_anomaly.surge_ratio }}배</strong> 급등
-          <span class="severity-badge severity-{{ stock_anomaly.severity }}" style="margin-left:0.4rem">{{
-            stock_anomaly.severity|upper }}</span>
-        </div>
-        <p class="alert-meta">
-          최근={{ stock_anomaly.recent_mentions }}건, 예상={{ stock_anomaly.expected_mentions }}건, z-score={{
-          stock_anomaly.z_score }}
-        </p>
-      </div>
-    </div>
+<section class="panel">
+  <div class="panel-head">
+    <h2>이상 징후</h2>
   </div>
+  {% if stock_anomaly %}
+  <div class="anomaly-summary">
+    <p class="anomaly-main">
+      최근 관심도가 기준 대비
+      <strong>{{ stock_anomaly.surge_ratio }}배</strong>
+      상승했습니다.
+    </p>
+    <p class="meta-note">
+      최근={{ stock_anomaly.recent_mentions }}건,
+      예상={{ stock_anomaly.expected_mentions }}건,
+      z-score={{ stock_anomaly.z_score }}
+    </p>
+    <p>
+      <span class="severity-badge severity-{{ stock_anomaly.severity }}">
+        {{ stock_anomaly.severity|upper }}
+      </span>
+    </p>
+  </div>
+  {% else %}
+  <p class="empty-note">현재 이상 징후가 감지되지 않았습니다.</p>
   {% endif %}
 </section>
 
-<!-- Price & Interest Chart -->
+{% if request.user.is_authenticated %}
 <section class="panel">
   <div class="panel-head">
-    <h2><span class="material-icons-round">show_chart</span>가격 · 관심도 추이</h2>
+    <h2>관심종목</h2>
+  </div>
+  {% if watchlists %}
+  <form method="post" action="{% url 'watchlist:add-item' stock.symbol %}" class="watchlist-inline-form">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <label for="watchlist-select">워치리스트</label>
+    <select id="watchlist-select" name="watchlist_id">
+      {% for watchlist in watchlists %}
+      <option value="{{ watchlist.id }}">{{ watchlist.name }}{% if watchlist.is_default %} (기본){% endif %}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="note" maxlength="255" placeholder="메모 (선택사항)">
+    <button type="submit">추가</button>
+  </form>
+
+  <ul class="watchlist-chip-list">
+    {% for watchlist in watchlists %}
+    {% if watchlist.id in watchlist_ids_with_stock %}
+    <li>
+      <span>{{ watchlist.name }}</span>
+      <form method="post" action="{% url 'watchlist:remove-item' stock.symbol %}" class="inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="watchlist_id" value="{{ watchlist.id }}">
+        <button type="submit">제거</button>
+      </form>
+    </li>
+    {% endif %}
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty-note">관심종목 목록이 없습니다. <a href="{% url 'watchlist:list' %}">관심종목 페이지</a>에서 생성하세요.</p>
+  {% endif %}
+
+  {% if watchlist_limit %}
+  <p class="meta-note">Free 플랜: 최대 {{ watchlist_limit }}개 워치리스트</p>
+  {% else %}
+  <p class="meta-note">현재 플랜: 무제한 워치리스트</p>
+  {% endif %}
+</section>
+{% else %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>관심종목</h2>
+  </div>
+  <p class="empty-note"><a href="{% url 'accounts:login' %}">로그인</a>하여 이 종목을 관심종목에 추가하세요.</p>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>가격 · 관심도 추이</h2>
   </div>
   <canvas id="stock-overlay-chart" height="120"></canvas>
   {{ price_chart_data|json_script:"price-chart-data" }}
   {{ interest_chart_data|json_script:"interest-chart-data" }}
 </section>
 
-<!-- Price Table -->
 <section class="panel">
   <div class="panel-head">
-    <h2><span class="material-icons-round">payments</span>최근 가격</h2>
+    <h2>최근 가격</h2>
   </div>
   <div class="table-scroll">
     <table>
@@ -84,10 +136,9 @@
   </div>
 </section>
 
-<!-- Interest Table -->
 <section class="panel">
   <div class="panel-head">
-    <h2><span class="material-icons-round">visibility</span>최근 관심도</h2>
+    <h2>최근 관심도</h2>
   </div>
   <div class="table-scroll">
     <table>
@@ -116,102 +167,40 @@
     </table>
   </div>
 </section>
-{% endblock %}
 
-{% block sidebar %}
-<aside class="sidebar">
-  <!-- Watchlist Widget -->
-  {% if request.user.is_authenticated %}
-  <div class="panel">
-    <div class="panel-head">
-      <h2><span class="material-icons-round">star</span>관심종목</h2>
-    </div>
-    {% if watchlists %}
-    <form method="post" action="{% url 'watchlist:add-item' stock.symbol %}" class="watchlist-inline-form">
-      {% csrf_token %}
-      <input type="hidden" name="next" value="{{ request.get_full_path }}">
-      <select name="watchlist_id" style="flex:1;">
-        {% for watchlist in watchlists %}
-        <option value="{{ watchlist.id }}">{{ watchlist.name }}{% if watchlist.is_default %} (기본){% endif %}</option>
-        {% endfor %}
-      </select>
-      <input type="text" name="note" maxlength="255" placeholder="메모" style="flex:1;">
-      <button type="submit">추가</button>
-    </form>
-
-    <ul class="watchlist-chip-list" style="margin-top: 0.75rem;">
-      {% for watchlist in watchlists %}
-      {% if watchlist.id in watchlist_ids_with_stock %}
-      <li>
-        <span>{{ watchlist.name }}</span>
-        <form method="post" action="{% url 'watchlist:remove-item' stock.symbol %}" class="inline-form">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <input type="hidden" name="watchlist_id" value="{{ watchlist.id }}">
-          <button type="submit" style="padding:0.2rem 0.5rem;font-size:0.75rem;">제거</button>
-        </form>
-      </li>
+<section class="panel">
+  <div class="panel-head">
+    <h2>관련 뉴스</h2>
+  </div>
+  <ul style="list-style: none;">
+    {% for item in news_items %}
+    <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+      <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>
+      {% if item.publisher %}
+      <span class="meta-note"> — {{ item.publisher }}</span>
       {% endif %}
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p class="empty-note">관심종목 목록이 없습니다. <a href="{% url 'watchlist:list' %}">관심종목 페이지</a>에서 생성하세요.</p>
-    {% endif %}
+    </li>
+    {% empty %}
+    <li class="empty-note">뉴스 데이터가 없습니다.</li>
+    {% endfor %}
+  </ul>
+</section>
 
-    {% if watchlist_limit %}
-    <p class="meta-note" style="margin-top:0.5rem;">Free 플랜: 최대 {{ watchlist_limit }}개 워치리스트</p>
-    {% else %}
-    <p class="meta-note" style="margin-top:0.5rem;">현재 플랜: 무제한 워치리스트</p>
-    {% endif %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>키워드 클라우드</h2>
+  </div>
+  {% if topic_cloud %}
+  <div class="topic-cloud">
+    {% for item in topic_cloud %}
+    <span class="topic-chip" style="--topic-weight: {{ item.weight }}; font-size: {{ item.font_size }}rem;"
+      title="{{ item.count }}회 언급">
+      {{ item.keyword }}
+    </span>
+    {% endfor %}
   </div>
   {% else %}
-  <div class="panel">
-    <div class="panel-head">
-      <h2><span class="material-icons-round">star</span>관심종목</h2>
-    </div>
-    <p class="empty-note"><a href="{% url 'accounts:login' %}">로그인</a>하여 이 종목을 관심종목에 추가하세요.</p>
-  </div>
+  <p class="empty-note">키워드 데이터가 아직 없습니다.</p>
   {% endif %}
-
-  <!-- News Widget -->
-  <div class="panel">
-    <div class="panel-head">
-      <h2><span class="material-icons-round">newspaper</span>관련 뉴스</h2>
-    </div>
-    <ul class="news-list">
-      {% for item in news_items %}
-      <li class="news-item">
-        <span class="news-bullet">●</span>
-        <div>
-          <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>
-          {% if item.publisher %}
-          <span class="news-publisher">{{ item.publisher }}</span>
-          {% endif %}
-        </div>
-      </li>
-      {% empty %}
-      <li class="empty-note">뉴스 데이터가 없습니다.</li>
-      {% endfor %}
-    </ul>
-  </div>
-
-  <!-- Keyword Cloud Widget -->
-  <div class="panel">
-    <div class="panel-head">
-      <h2><span class="material-icons-round">tag</span>키워드 클라우드</h2>
-    </div>
-    {% if topic_cloud %}
-    <div class="topic-cloud">
-      {% for item in topic_cloud %}
-      <span class="topic-chip" style="--topic-weight: {{ item.weight }}; font-size: {{ item.font_size }}rem;"
-        title="{{ item.count }}회 언급">
-        {{ item.keyword }}
-      </span>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="empty-note">키워드 데이터가 아직 없습니다.</p>
-    {% endif %}
-  </div>
-</aside>
+</section>
 {% endblock %}
